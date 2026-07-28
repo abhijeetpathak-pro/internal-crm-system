@@ -1,0 +1,113 @@
+<nav class="sidebar">
+  <a href="/dashboard" class="sidebar-logo-wrap">
+    <img src="/img/witqualis_logo.jpg" alt="CWA">
+    <div class="sidebar-logo-text">
+      <div class="name">CRM SYSTEM</div>
+      <div class="sub">TECH & MARKETING</div>
+    </div>
+  </a>
+
+  <div style="padding:.6rem .5rem .25rem;flex:1;overflow-y:auto;">
+    <ul class="nav nav-pills flex-column gap-1">
+
+      <li><a href="/dashboard" class="nav-link <%= active==='dashboard'?'active':'' %>">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a></li>
+
+      <div class="nav-section">Work</div>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+          <i class="fa-solid fa-clipboard-list"></i> Requirement
+        </a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/requirements/add"><i class="fa-solid fa-plus me-2"></i>Add Requirement</a></li>
+          <li><a class="dropdown-item" href="/requirements"><i class="fa-solid fa-eye me-2"></i>View Requirements</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+          <i class="fa-solid fa-user-tie"></i> Resource
+        </a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/resources/add"><i class="fa-solid fa-plus me-2"></i>Add Resource</a></li>
+          <li><a class="dropdown-item" href="/resources"><i class="fa-solid fa-eye me-2"></i>View Resources</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+          <i class="fa-solid fa-bullseye"></i> Lead
+        </a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/leads/add"><i class="fa-solid fa-plus me-2"></i>Add Lead</a></li>
+          <li><a class="dropdown-item" href="/leads"><i class="fa-solid fa-eye me-2"></i>View Leads</a></li>
+        </ul>
+      </li>
+
+      <li><a href="/in-house" class="nav-link <%= active==='inhouse'?'active':'' %>">
+        <i class="fa-solid fa-building-user"></i> In-House
+      </a></li>
+
+      <!-- ─── CLIENTS (SABHI ROLES KO DIKHEGA) ─── -->
+      <div class="nav-section">Management</div>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+          <i class="fa-solid fa-briefcase"></i> Clients
+        </a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/clients/add"><i class="fa-solid fa-plus me-2"></i>Add Client</a></li>
+          <li><a class="dropdown-item" href="/clients"><i class="fa-solid fa-eye me-2"></i>View Clients</a></li>
+        </ul>
+      </li>
+
+      <!-- ─── VENDORS (SABHI ROLES KO DIKHEGA) ─── -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+          <i class="fa-solid fa-handshake"></i> Vendors
+        </a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/vendors/add"><i class="fa-solid fa-plus me-2"></i>Add Vendor</a></li>
+          <li><a class="dropdown-item" href="/vendors"><i class="fa-solid fa-eye me-2"></i>View Vendors</a></li>
+        </ul>
+      </li>
+
+      <!-- ─── ADMIN ONLY (Add Members + Team) ─── -->
+      <% if(user.role==='admin'||user.role==='super_admin'){ %>
+      <li><a href="/members/add" class="nav-link <%= active==='members'?'active':'' %>">
+        <i class="fa-solid fa-user-plus"></i> Add Members
+      </a></li>
+
+      <li><a href="/team" class="nav-link <%= active==='team'?'active':'' %>">
+        <i class="fa-solid fa-users"></i> Team
+      </a></li>
+      <% } %>
+
+      <!-- ─── SUPER ADMIN ONLY ─── -->
+      <% if(user.role==='super_admin'){ %>
+      <div class="nav-section">Super Admin</div>
+      <li><a href="/super-admin/users" class="nav-link <%= active==='admin-powers'?'active':'' %>">
+        <i class="fa-solid fa-user-shield"></i> Admin Powers
+      </a></li>
+      <li><a href="/super-admin/license" class="nav-link <%= active==='license'?'active':'' %>">
+        <i class="fa-solid fa-key"></i> License Key
+      </a></li>
+      <% } %>
+
+    </ul>
+  </div>
+
+  <div class="sidebar-bottom">
+    <ul class="nav nav-pills flex-column gap-1">
+      <li><a href="/profile" class="nav-link" style="color:rgba(255,255,255,.55)!important;font-size:.82rem">
+        <i class="fa-solid fa-id-badge me-2"></i>Profile
+      </a></li>
+      <li><a href="/logout" class="nav-link" style="color:rgba(255,255,255,.55)!important;font-size:.82rem">
+        <i class="fa-solid fa-right-from-bracket me-2"></i>Logout
+      </a></li>
+    </ul>
+    <div style="font-size:.63rem;color:rgba(255,255,255,.2);margin-top:.6rem;padding-left:.85rem">CWA CRM v3.0</div>
+  </div>
+</nav>

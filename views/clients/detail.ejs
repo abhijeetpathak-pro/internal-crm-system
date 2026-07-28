@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head', {title: client.company_name + ' - CWA CRM'}) %>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h4 class="fw-semibold mb-1"><i class="fa-solid fa-briefcase me-2 text-danger"></i><%= client.company_name %></h4>
+        <div class="small text-secondary d-flex gap-3 flex-wrap">
+          <% if(client.website){ %>
+          <a href="<%= client.website %>" target="_blank" class="text-decoration-none" style="color:#C0392B"><i class="fa-solid fa-globe me-1"></i><%= client.website.replace(/^https?:\/\//,'').split('/')[0] %></a>
+          <% } %>
+          <% if(client.phone){ %>
+          <span><i class="fa-solid fa-phone me-1"></i><%= client.phone %></span>
+          <% } %>
+          <% if(client.email){ %>
+          <span><i class="fa-solid fa-envelope me-1"></i><%= client.email %></span>
+          <% } %>
+          <% if(client.address){ %>
+          <span><i class="fa-solid fa-location-dot me-1"></i><%= client.address %></span>
+          <% } %>
+        </div>
+      </div>
+      <a href="/clients" class="btn btn-sm btn-outline-secondary">Back</a>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="card stat-card p-3">
+          <div class="fw-semibold mb-2">Points of Contact</div>
+          <% if(pocs.length===0){ %>
+            <div class="text-secondary small text-center py-3">No POCs added yet.</div>
+          <% }else{ %>
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr class="text-secondary small text-uppercase">
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% pocs.forEach(function(p){ %>
+              <tr id="poc-<%= p.id %>">
+                <td class="fw-semibold small"><%= p.poc_name %></td>
+                <td class="small text-secondary"><%= p.poc_email||'—' %></td>
+                <td class="small text-secondary"><%= p.poc_phone||'—' %></td>
+                <td class="text-end">
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-light border rounded-circle" style="width:28px;height:28px;padding:0;font-size:.7rem" data-bs-toggle="dropdown">
+                      <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                      <li><a class="dropdown-item small" href="/requirements?poc_id=<%= p.id %>"><i class="fa-solid fa-clipboard-list me-2 text-secondary"></i>View Requirements</a></li>
+                      <li><a class="dropdown-item small" href="#" onclick="editPoc('<%= p.id %>', '<%= p.poc_name %>', '<%= p.poc_email %>', '<%= p.poc_phone %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li><a class="dropdown-item small text-danger" href="#" onclick="delPoc('<%= p.id %>', '<%= client.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card stat-card p-3">
+          <div class="fw-semibold mb-2">Add POC</div>
+          <form id="addPocForm" data-client-id="<%= client.id %>">
+            <div class="mb-2"><input type="text" name="poc_name" class="form-control form-control-sm" placeholder="POC Name *" required></div>
+            <div class="mb-2"><input type="email" name="poc_email" class="form-control form-control-sm" placeholder="Email"></div>
+            <div class="mb-2"><input type="text" name="poc_phone" class="form-control form-control-sm" placeholder="Phone"></div>
+            <button type="submit" class="btn btn-primary btn-sm w-100">Add POC</button>
+            <div id="pocMsg" class="alert mt-2 d-none py-1 small"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit POC Modal -->
+  <div class="modal fade" id="editPocModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-semibold">Edit POC</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="ePocId">
+          <div class="mb-2"><label class="form-label small">Name</label><input type="text" id="ePocName" class="form-control form-control-sm"></div>
+          <div class="mb-2"><label class="form-label small">Email</label><input type="email" id="ePocEmail" class="form-control form-control-sm"></div>
+          <div class="mb-2"><label class="form-label small">Phone</label><input type="text" id="ePocPhone" class="form-control form-control-sm"></div>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="submitPocEdit()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Fix dropdowns
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.dropdown-toggle').forEach(function(el) {
+        new bootstrap.Dropdown(el);
+      });
+    });
+
+    const editPocModal = new bootstrap.Modal(document.getElementById('editPocModal'));
+    const clientId = '<%= client.id %>';
+
+    document.getElementById('addPocForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = Object.fromEntries(fd.entries());
+      const res = await fetch('/api/clients/' + clientId + '/pocs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const msg = document.getElementById('pocMsg');
+      if (res.ok) {
+        location.reload();
+      } else {
+        msg.classList.remove('d-none');
+        msg.classList.add('alert-danger');
+        const d = await res.json();
+        msg.textContent = d.error || 'Failed.';
+      }
+    });
+
+    // EDIT FUNCTION - receives individual parameters (not JSON)
+    function editPoc(id, name, email, phone) {
+      document.getElementById('ePocId').value = id;
+      document.getElementById('ePocName').value = name || '';
+      document.getElementById('ePocEmail').value = email || '';
+      document.getElementById('ePocPhone').value = phone || '';
+      editPocModal.show();
+    }
+
+    async function submitPocEdit() {
+      const id = document.getElementById('ePocId').value;
+      const res = await fetch('/api/clients/' + clientId + '/pocs/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poc_name: document.getElementById('ePocName').value,
+          poc_email: document.getElementById('ePocEmail').value,
+          poc_phone: document.getElementById('ePocPhone').value
+        })
+      });
+      if (res.ok) {
+        location.reload();
+      } else {
+        alert('Failed to update POC.');
+      }
+    }
+
+    async function delPoc(pocId, cId) {
+      if (!confirm('Delete this POC?')) return;
+      const res = await fetch('/api/clients/' + cId + '/pocs/' + pocId, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        document.getElementById('poc-' + pocId)?.remove();
+      } else {
+        alert('Failed to delete POC.');
+      }
+    }
+  </script>
+</body>
+</html>

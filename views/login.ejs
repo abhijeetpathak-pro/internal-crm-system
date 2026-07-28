@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<%- include('partials/head', { title: 'Login — CodeWithAkhil CRM' }) %>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+
+    <img src="/img/cwa-logo.png" alt="CodeWithAkhil" class="login-logo">
+
+    <div class="text-center mb-4">
+      <h5 class="fw-semibold mb-0" style="color:#1A1A1A;">Internal CRM</h5>
+      <small class="text-secondary">Tech &amp; Marketing — Staff Portal</small>
+    </div>
+
+    <% if (error) { %>
+      <div class="alert alert-danger py-2 small border-0" style="background:#fdf2f2;color:#C0392B;">
+        <i class="fa-solid fa-circle-exclamation me-1"></i><%= error %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/login">
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-secondary">Email Address</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fa-solid fa-envelope text-secondary" style="font-size:.85rem"></i>
+          </span>
+          <input type="email" name="email" class="form-control border-start-0"
+                 placeholder="you@codewithakhil.com" required autofocus>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label small fw-semibold text-secondary">Password</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fa-solid fa-lock text-secondary" style="font-size:.85rem"></i>
+          </span>
+          <input type="password" id="passwordInput" name="password" class="form-control border-start-0"
+                 placeholder="Enter Password" required>
+          <button type="button" class="input-group-text bg-white border-start-0" id="togglePasswordBtn" style="cursor: pointer;">
+            <i class="fa-solid fa-eye text-secondary" id="eyeIcon" style="font-size:.85rem"></i>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+        <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In
+      </button>
+    </form>
+
+    <div class="text-center mt-4" style="font-size:.75rem;color:#9CA3AF;">
+      Your role determines which dashboard you see<br>
+      <span style="color:#C0392B;">=></span> &nbsp;|&nbsp;
+      <span style="color:#6B7280;">Admin</span> &nbsp;|&nbsp;
+      <span style="color:#9CA3AF;">Employee</span>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('togglePasswordBtn').addEventListener('click', function () {
+    const passwordInput = document.getElementById('passwordInput'); // Apne input ki ID yahan daalo
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    // Agar password hidden hai toh show karo, agar dikh raha hai toh hide karo
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash'); // Aankh par line aa jayegi
+    } else {
+        passwordInput.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye'); // Normal aankh dikhegi
+    }
+});
+</script>
+</body>
+</html>

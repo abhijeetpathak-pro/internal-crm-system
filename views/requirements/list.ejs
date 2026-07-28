@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Global Head Partial Injection -->
+  <%- include('../partials/head',{title:'Requirements — CWA CRM'}) %>
+  
+  <style>
+    /* ─── TABLE & CONTAINER OVERFLOW CORRECTIONS ─── */
+    .table-wrap { 
+      overflow: visible !important; /* Allows absolute action dropdowns to display without scroll clipping */
+    }
+    
+    .req-table th, .req-table td {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis; /* Forces text truncation with '...' */
+    }
+
+    /* Fixed Column Width Allocations for Standardized Table Alignment */
+    .req-table .col-title { max-width: 180px; min-width: 100px; }
+    .req-table .col-client { max-width: 130px; min-width: 80px; }
+    .req-table .col-status { max-width: 90px; min-width: 70px; }
+    .req-table .col-budget { max-width: 100px; min-width: 70px; }
+    .req-table .col-submitted { max-width: 130px; min-width: 90px; }
+    .req-table .col-added { max-width: 90px; min-width: 70px; }
+    
+    .req-table td .ellipsis {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    /* ─── 3-DOT ACTION BUTTON STYLES ─── */
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid #dee2e6;
+      background: #fff;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      color: #6B7280;
+      transition: all 0.15s;
+      cursor: pointer;
+      line-height: 1 !important;
+      outline: none;
+      box-shadow: none;
+    }
+    
+    .action-btn:hover {
+      background: #f3f4f6;
+      border-color: #C0392B;
+      color: #C0392B;
+    }
+
+    /* ─── ISOLATED DROPDOWN MENU (No Bootstrap Conflict) ─── */
+    .cwa-isolated-menu-list {
+      display: none; /* Hidden by default */
+      position: absolute;
+      right: 10px;
+      top: 38px;
+      background: #ffffff;
+      min-width: 160px;
+      z-index: 999999 !important;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 6px 0 !important;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      list-style: none !important;
+      margin: 0 !important;
+    }
+
+    .cwa-isolated-menu-list li {
+      list-style: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: transparent !important;
+    }
+    
+    .cwa-isolated-menu-list .dropdown-item {
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      display: flex;
+      align-items: center;
+      color: #374151;
+      text-decoration: none;
+      cursor: pointer;
+      gap: 8px;
+    }
+    
+    .cwa-isolated-menu-list .dropdown-item:hover {
+      background: #f8f9fa;
+      color: #1a1a1a;
+    }
+    
+    .cwa-isolated-menu-list .dropdown-item i { width: 18px; text-align: center; }
+    .cwa-isolated-menu-list .dropdown-item.text-danger:hover { background: #fef2f2; color: #dc2626; }
+    .cwa-isolated-menu-list .divider { border-top: 1px solid #e5e7eb; margin: 4px 8px; }
+
+    .action-cell { position: relative; overflow: visible !important; text-align: center; }
+    .action-cell .btn-wrap { display: inline-block; position: relative; }
+
+    /* ─── STATUS BADGES ─── */
+    .status-badge {
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .status-badge.open { background: #dcfce7; color: #15803d; }
+    .status-badge.hold { background: #f3f4f6; color: #6b7280; }
+
+    #resultCount { font-size: 0.75rem; padding: 0.25rem 0.6rem; }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Partial Injection -->
+  <%- include('../partials/sidebar',{user,active}) %>
+  
+  <div class="main-content">
+    <!-- Topbar Partial Injection -->
+    <%- include('../partials/topbar',{user}) %>
+    
+    <!-- ─── PAGE HEADER: Title & Create Requirement CTA ─── -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-semibold mb-0">
+        <i class="fa-solid fa-clipboard-list me-2 text-danger"></i>Requirements
+      </h4>
+      <a href="/requirements/add" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-plus me-1"></i>Add Requirement
+      </a>
+    </div>
+
+    <!-- ─── SEARCH & FILTER BAR ─── -->
+    <div class="mb-3 d-flex align-items-center">
+      <div class="input-group input-group-sm" style="max-width:350px">
+        <span class="input-group-text bg-white">
+          <i class="fa-solid fa-magnifying-glass text-danger" style="font-size:.8rem"></i>
+        </span>
+        <input type="text" id="reqSearchInput" class="form-control" 
+               placeholder="Search by title, client, status, budget..." 
+               onkeyup="filterRequirements()">
+        <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <span class="badge bg-secondary ms-2" id="resultCount">0 results</span>
+    </div>
+
+    <!-- Empty State Renderer -->
+    <% if(!groups || !groups.length){ %>
+    <div class="card stat-card p-0">
+      <div class="text-center py-4 text-secondary">No requirements yet.</div>
+    </div>
+    <% } %>
+
+    <!-- ─── REQUIREMENTS LIST (DATE-GROUPED BOOTSTRAP TABLES) ─── -->
+    <div id="reqGroups">
+    <% if(groups && groups.length){ %>
+      <% groups.forEach(function(group){ %>
+      <div class="mb-3 req-group" data-group-key="<%= group.key %>">
+        
+        <!-- Date Group Header -->
+        <div class="fw-semibold small text-uppercase text-secondary mb-2">
+          <i class="fa-solid fa-calendar-day me-2"></i><%= group.label %>
+          <span class="badge bg-secondary ms-1"><%= group.requirements ? group.requirements.length : 0 %></span>
+        </div>
+        
+        <!-- Requirements Table Card -->
+        <div class="card stat-card p-0">
+          <div class="table-wrap">
+            <table class="table align-middle mb-0 req-table">
+              <thead>
+                <tr class="text-secondary small text-uppercase border-bottom">
+                  <th class="col-title ps-3">Title</th>
+                  <th class="col-client">Client</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-budget">Budget</th>
+                  <th class="col-submitted">Submitted By</th>
+                  <th class="col-added">Added</th>
+                  <th class="text-center" style="width:60px">Action</th>
+                </tr>
+              </thead>
+              
+              <tbody>
+                <% if(group.requirements && group.requirements.length){ %>
+                  <% group.requirements.forEach(function(r){ %>
+                  <tr id="rrow-<%= r.id %>" class="req-row"
+                      data-search="<%= [r.title, r.company_name, r.status, r.budget, r.submitted_by_name].filter(Boolean).join(' ').toLowerCase() %>">
+                    
+                    <!-- Title Column -->
+                    <td class="col-title ps-3">
+                      <a href="/requirements/<%= r.id %>" class="fw-semibold text-decoration-none" style="color:#1A1A1A" title="<%= r.title %>">
+                        <span class="ellipsis"><%= r.title %></span>
+                      </a>
+                    </td>
+                    
+                    <!-- Client Company Name Column -->
+                    <td class="col-client small text-secondary">
+                      <span class="ellipsis" title="<%= r.company_name || '—' %>"><%= r.company_name||'—' %></span>
+                    </td>
+                    
+                    <!-- Requirement Status Badge Column -->
+                    <td class="col-status">
+                      <span class="status-badge <%= r.status === 'Hold' ? 'hold' : 'open' %>">
+                        <%= r.status || 'Open' %>
+                      </span>
+                    </td>
+                    
+                    <!-- Budget Column -->
+                    <td class="col-budget small text-secondary">
+                      <span class="ellipsis" title="<%= r.budget || '—' %>"><%= r.budget||'—' %></span>
+                    </td>
+                    
+                    <!-- Submitter/Employee Name Column -->
+                    <td class="col-submitted small text-secondary">
+                      <span class="ellipsis" title="<%= r.submitted_by_name || '—' %>"><%= r.submitted_by_name || '—' %></span>
+                    </td>
+                    
+                    <!-- Created Time Column -->
+                    <td class="col-added small text-secondary">
+                      <%= r.created_at ? new Date(r.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—' %>
+                    </td>
+                    
+                    <!-- Action Column (Custom Isolated Dropdown Trigger) -->
+                    <td class="action-cell">
+                      <div class="btn-wrap">
+                        <button class="action-btn menu-trigger-btn" type="button" data-id="<%= r.id %>" title="Actions">
+                          <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        
+                        <ul id="menu-box-<%= r.id %>" class="cwa-isolated-menu-list">
+                          <li>
+                            <a class="dropdown-item" href="/requirements/<%= r.id %>">
+                              <i class="fa-solid fa-eye text-secondary"></i>View
+                            </a>
+                          </li>
+                          <li>
+                            <!-- Dynamic Modal Edit Trigger -->
+                            <a class="dropdown-item" href="#" onclick="openEditModal('<%= r.id %>'); return false;">
+                              <i class="fa-solid fa-pencil text-primary"></i>Edit
+                            </a>
+                          </li>
+                          <li class="divider"></li>
+                          <li>
+                            <a class="dropdown-item text-danger delete-btn-trigger" href="#" data-id="<%= r.id %>">
+                              <i class="fa-solid fa-trash"></i>Delete
+                            </a>
+                          </li>
+                        </ul>
+                      </div>
+                    </td>
+                  </tr>
+                  <% }) %>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    <% } %>
+    </div>
+  </div>
+
+  <!-- ─── DYNAMIC EDIT MODAL (PRE-FILLED LIKE RESOURCE MODAL) ─── -->
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-semibold">Edit Requirement</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="editModalBody">
+          <!-- Dynamic Content with Spinner injects via AJAX -->
+          <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-danger"></div> Loading...
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="submitEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── DELETE CONFIRMATION MODAL ─── -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h6 class="modal-title fw-semibold">
+            <i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Confirm Delete
+          </h6>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small mb-0">Are you sure you want to delete <strong id="deleteName"></strong>?</p>
+          <p class="small text-secondary mb-0">This cannot be undone.</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-sm btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 Bundle JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    let editModalObj = null;
+    let deleteModalObj = null;
+    let deleteId = null;
+
+    // Initialize Bootstrap Modals on DOM Load
+    document.addEventListener('DOMContentLoaded', function() {
+      editModalObj = new bootstrap.Modal(document.getElementById('editModal'));
+      deleteModalObj = new bootstrap.Modal(document.getElementById('deleteModal'));
+      filterRequirements();
+    });
+
+    /**
+     * DYNAMIC EDIT MODAL LOADER
+     * Fetches Requirement details from API, builds form controls with pre-selected values.
+     */
+    async function openEditModal(id) {
+      document.getElementById('editModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-danger"></div> Loading requirement data...</div>';
+      editModalObj.show();
+
+      try {
+        const res = await fetch('/api/requirements/' + id);
+        const data = await res.json();
+        
+        if (!data.success) {
+          document.getElementById('editModalBody').innerHTML = '<div class="alert alert-danger">Failed to load requirement details.</div>';
+          return;
+        }
+
+        const r = data.requirement;
+        const clients = data.clients || [];
+        const pocs = data.pocs || [];
+
+        // Build Client Dropdown Options
+        let clientOptions = '<option value="">Select client...</option>';
+        clients.forEach(c => {
+          clientOptions += `<option value="${c.id}" ${r.client_id == c.id ? 'selected' : ''}>${c.company_name}</option>`;
+        });
+
+        // Build POC Dropdown Options
+        let pocOptions = '<option value="">Select POC...</option>';
+        pocs.forEach(p => {
+          pocOptions += `<option value="${p.id}" ${r.poc_id == p.id ? 'selected' : ''}>${p.poc_name}</option>`;
+        });
+
+        // Inject Pre-Filled HTML Form Controls inside Modal Body
+        document.getElementById('editModalBody').innerHTML = `
+          <input type="hidden" id="eId" value="${r.id}">
+          <div class="row g-2 mb-2">
+            <div class="col-md-6">
+              <label class="form-label small">Client *</label>
+              <select id="eClientId" class="form-select form-select-sm" onchange="loadPocsForEdit(this.value)">
+                ${clientOptions}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">POC</label>
+              <select id="ePocId" class="form-select form-select-sm">
+                ${pocOptions}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small">Requirement Title *</label>
+            <input type="text" id="eTitle" class="form-control form-control-sm" value="${r.title || ''}">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small">Job Description</label>
+            <textarea id="eJd" class="form-control form-control-sm" rows="4">${r.jd || r.job_description || ''}</textarea>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">Status</label>
+              <select id="eStatus" class="form-select form-select-sm">
+                <option value="Open" ${r.status === 'Open' || !r.status ? 'selected' : ''}>Open</option>
+                <option value="Hold" ${r.status === 'Hold' ? 'selected' : ''}>Hold</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Budget</label>
+              <input type="text" id="eBudget" class="form-control form-control-sm" placeholder="e.g. 12-15 LPA" value="${r.budget || ''}">
+            </div>
+          </div>
+          <div id="editMsg" class="alert mt-2 d-none py-1 small"></div>
+        `;
+      } catch (err) {
+        document.getElementById('editModalBody').innerHTML = '<div class="alert alert-danger">Error fetching requirement data.</div>';
+      }
+    }
+
+    /**
+     * Cascading Dropdown Helper: Loads POCs dynamically when client selection changes in modal
+     */
+    async function loadPocsForEdit(clientId) {
+      const pocSelect = document.getElementById('ePocId');
+      if (!clientId) {
+        pocSelect.innerHTML = '<option value="">Select POC...</option>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/pocs-by-client/' + clientId);
+        const pocs = await res.json();
+        let options = '<option value="">Select POC...</option>';
+        pocs.forEach(p => {
+          options += `<option value="${p.id}">${p.poc_name}</option>`;
+        });
+        pocSelect.innerHTML = options;
+      } catch (e) {}
+    }
+
+    /**
+     * SUBMIT EDIT FORM (PUT Request)
+     */
+    async function submitEdit() {
+      const id = document.getElementById('eId').value;
+      const msg = document.getElementById('editMsg');
+      
+      const payload = {
+        title: document.getElementById('eTitle').value,
+        client_id: document.getElementById('eClientId').value,
+        poc_id: document.getElementById('ePocId').value,
+        jd: document.getElementById('eJd').value,
+        status: document.getElementById('eStatus').value,
+        budget: document.getElementById('eBudget').value
+      };
+
+      if (!payload.title.trim()) {
+        msg.className = 'alert alert-warning mt-2 py-1 small';
+        msg.textContent = 'Title is required.';
+        msg.classList.remove('d-none');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/requirements/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          location.reload(); // Reload page to reflect updated values
+        } else {
+          msg.className = 'alert alert-danger mt-2 py-1 small';
+          msg.textContent = result.message || 'Failed to update requirement.';
+          msg.classList.remove('d-none');
+        }
+      } catch (err) {
+        msg.className = 'alert alert-danger mt-2 py-1 small';
+        msg.textContent = 'Server Error: ' + err.message;
+        msg.classList.remove('d-none');
+      }
+    }
+
+    /**
+     * CLIENT-SIDE SEARCH FILTER
+     */
+    function filterRequirements() {
+      const q = document.getElementById('reqSearchInput').value.toLowerCase().trim();
+      let totalCount = 0;
+
+      document.querySelectorAll('.req-group').forEach(function(group) {
+        let visibleCount = 0;
+        
+        group.querySelectorAll('.req-row').forEach(function(row) {
+          const searchText = row.dataset.search || '';
+          const show = !q || searchText.includes(q);
+          row.style.display = show ? '' : 'none';
+          if (show) visibleCount++;
+        });
+        
+        group.style.display = visibleCount > 0 ? '' : 'none';
+        totalCount += visibleCount;
+      });
+
+      document.getElementById('resultCount').textContent = totalCount + ' results';
+    }
+
+    function clearSearch() {
+      document.getElementById('reqSearchInput').value = '';
+      filterRequirements();
+    }
+
+    /**
+     * DELETE TRIGGER & CONFIRMATION HANDLERS
+     */
+    function delReq(id) {
+      deleteId = id;
+      const row = document.getElementById('rrow-' + id);
+      const name = row ? row.querySelector('.col-title .ellipsis')?.textContent.trim() : 'this requirement';
+      document.getElementById('deleteName').textContent = name;
+      if(deleteModalObj) deleteModalObj.show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+      if (!deleteId) return;
+      
+      try {
+        const res = await fetch('/api/requirements/' + deleteId, { method: 'DELETE' });
+        
+        if (res.ok) {
+          const row = document.getElementById('rrow-' + deleteId);
+          if (row) row.remove();
+          filterRequirements();
+          if(deleteModalObj) deleteModalObj.hide();
+        } else {
+          alert('Failed to delete.');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
+
+    /**
+     * GLOBAL EVENT DELEGATION LISTENER
+     * Manages Isolated Dropdown Menu visibility and prevents click conflicts.
+     */
+    document.addEventListener('click', function(event) {
+      // 1. Delete Button Handler
+      const deleteBtn = event.target.closest('.delete-btn-trigger');
+      if (deleteBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        document.querySelectorAll('.cwa-isolated-menu-list').forEach(el => el.style.display = 'none');
+        const id = deleteBtn.getAttribute('data-id');
+        delReq(id);
+        return;
+      }
+
+      // 2. Action Menu Trigger (3-dot button)
+      const btn = event.target.closest('.menu-trigger-btn');
+      if (btn) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const targetId = btn.getAttribute('data-id');
+        const targetMenu = document.getElementById('menu-box-' + targetId);
+        
+        // Hide all other active menus
+        document.querySelectorAll('.cwa-isolated-menu-list').forEach(function(el) {
+          if (el !== targetMenu) {
+            el.style.display = 'none';
+          }
+        });
+        
+        // Toggle current dropdown menu display
+        if (targetMenu) {
+          const isDisplayed = targetMenu.style.display === 'block';
+          targetMenu.style.display = isDisplayed ? 'none' : 'block';
+        }
+      } else {
+        // Hide open dropdowns when clicking outside
+        document.querySelectorAll('.cwa-isolated-menu-list').forEach(function(el) {
+          el.style.display = 'none';
+        });
+      }
+    });
+  </script>
+</body>
+</html>

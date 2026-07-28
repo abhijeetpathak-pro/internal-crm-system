@@ -1,0 +1,10 @@
+<!DOCTYPE html><html lang="en"><head><%- include('partials/head',{title:'License Expired'}) %></head>
+<body><div class="login-wrap"><div class="login-card text-center">
+  <img src="/img/cwa-logo.png" alt="CWA" class="login-logo" style="max-width:130px">
+  <div style="width:52px;height:52px;background:#fdf2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:1rem auto">
+    <i class="fa-solid fa-key" style="color:#C0392B;font-size:1.3rem"></i></div>
+  <h5 class="fw-semibold">License Expired</h5>
+  <p class="text-secondary small">Ask your <strong>Super Admin</strong> to renew the monthly license key from <em>Super Admin → License Key</em>.</p>
+  <% if(user){ %><a href="/logout" class="btn btn-primary w-100">Log Out</a>
+  <% }else{ %><a href="/login" class="btn btn-primary w-100">Back to Login</a><% } %>
+</div></div></body></html>

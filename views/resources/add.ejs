@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head',{title:'Add Resource — CWA CRM'}) %>
+  <style>
+    .form-label { font-weight: 600; font-size: 0.85rem; }
+    .form-control, .form-select { font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+    
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-semibold mb-0">
+        <i class="fa-solid fa-plus me-2 text-danger"></i>Add Resource
+      </h4>
+      <a href="/resources" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-arrow-left me-1"></i>Back
+      </a>
+    </div>
+
+    <div class="card stat-card p-4" style="max-width:700px">
+      <form id="addResForm" enctype="multipart/form-data">
+        <div class="row g-3">
+
+          <!-- ─── BASIC INFO ─── -->
+          <div class="col-md-6">
+            <label class="form-label">Resource Name <span class="text-danger">*</span></label>
+            <input type="text" name="resource_name" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. Backend Developer">
+          </div>
+
+          <!-- ─── ✅ EXPERIENCE ─── -->
+          <div class="col-md-3">
+            <label class="form-label">Experience</label>
+            <input type="text" name="experience" class="form-control" 
+                   placeholder="e.g. 5 years, 3-5 years">
+            <small class="text-secondary" style="font-size:0.7rem">e.g. 5 years, 3-5 years</small>
+          </div>
+
+          <!-- ─── SALARY ─── -->
+          <div class="col-md-3">
+            <label class="form-label">Salary (lpm)</label>
+            <input type="number" name="salary_lpm" class="form-control" step="0.1" placeholder="e.g. 12.5">
+          </div>
+
+          <!-- ─── SKILLS ─── -->
+          <div class="col-md-8">
+            <label class="form-label">Skills <span class="text-danger">*</span> 
+              <span class="text-secondary fw-normal">(first = primary tech for ID)</span>
+            </label>
+            <input type="text" name="skills" class="form-control" placeholder="Python, Django, AWS" required>
+          </div>
+
+          <!-- ─── LOCATION ─── -->
+          <div class="col-md-6">
+            <label class="form-label">Current Location</label>
+            <input type="text" name="current_location" class="form-control" placeholder="e.g. Mumbai">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Preferred Location</label>
+            <input type="text" name="preferred_location" class="form-control" placeholder="e.g. Bangalore, Pune">
+          </div>
+
+          <!-- ─── CV UPLOAD ─── -->
+          <div class="col-12">
+            <label class="form-label">CV Upload (PDF/DOC/DOCX, max 5MB)</label>
+            <input type="file" name="cv" class="form-control" accept=".pdf,.doc,.docx">
+          </div>
+
+          <div class="col-12">
+            <hr class="my-1">
+            <div class="fw-semibold small">Resource Type</div>
+          </div>
+
+          <!-- ─── TYPE TOGGLE ─── -->
+          <div class="col-md-4">
+            <label class="form-label">Type <span class="text-danger">*</span></label>
+            <select name="type" id="typeSelect" class="form-select" onchange="toggleFields()">
+              <option value="In-House">In-House</option>
+              <option value="Vendor">Vendor</option>
+            </select>
+          </div>
+
+          <!-- ─── IN-HOUSE FIELDS ─── -->
+          <div id="inhouseFields" class="col-12 row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Managed By</label>
+              <input type="text" name="managed_by" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone Number</label>
+              <input type="text" name="contact_number" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email Address</label>
+              <input type="email" name="email" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">LinkedIn</label>
+              <input type="text" name="linkedin" class="form-control form-control-sm">
+            </div>
+          </div>
+
+          <!-- ─── VENDOR FIELDS ─── -->
+          <div id="vendorFields" class="col-12 row g-2 d-none">
+            <div class="col-md-6">
+              <label class="form-label">Vendor <span class="text-danger">*</span></label>
+              <select name="vendor_id" id="vendorSel" class="form-select form-select-sm" onchange="loadVendorPocs()">
+                <option value="">Select vendor...</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Vendor POC</label>
+              <select name="poc_id" id="pocSel" class="form-select form-select-sm">
+                <option value="">Select POC...</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ─── SUBMIT ─── -->
+        <button type="submit" class="btn btn-primary mt-3">
+          <i class="fa-solid fa-plus me-1"></i>Add Resource
+        </button>
+        <a href="/resources" class="btn btn-outline-secondary mt-3 ms-2">Cancel</a>
+      </form>
+      <div id="msg" class="alert mt-3 d-none"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ─── TOGGLE FIELDS ───
+    function toggleFields() {
+      const isVendor = document.getElementById('typeSelect').value === 'Vendor';
+      document.getElementById('inhouseFields').classList.toggle('d-none', isVendor);
+      document.getElementById('vendorFields').classList.toggle('d-none', !isVendor);
+    }
+
+    // ─── LOAD VENDORS ───
+    (async function loadVendors() {
+      try {
+        const res = await fetch('/api/vendors');
+        const vendors = await res.json();
+        document.getElementById('vendorSel').innerHTML = '<option value="">Select vendor...</option>' + 
+          vendors.map(v => `<option value="${v.id}">${v.vendor_name} (${v.short_code})</option>`).join('');
+      } catch (err) {
+        console.error('Error loading vendors:', err);
+      }
+    })();
+
+    // ─── LOAD VENDOR POCS ───
+    async function loadVendorPocs() {
+      const vendorId = document.getElementById('vendorSel').value;
+      if (!vendorId) {
+        document.getElementById('pocSel').innerHTML = '<option value="">Select POC...</option>';
+        return;
+      }
+      try {
+        const res = await fetch(`/api/pocs/vendor/${vendorId}`);
+        const pocs = await res.json();
+        document.getElementById('pocSel').innerHTML = '<option value="">Select POC (optional)...</option>' + 
+          pocs.map(p => `<option value="${p.id}">${p.poc_name}</option>`).join('');
+      } catch (err) {
+        console.error('Error loading POCs:', err);
+      }
+    }
+
+    // ─── FORM SUBMIT ───
+    document.getElementById('addResForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const msgBox = document.getElementById('msg');
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+
+      const formData = new FormData(this);
+
+      try {
+        const res = await fetch('/api/resources', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          window.location.href = `/resources/${data.id}`;
+        } else {
+          msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+          msgBox.classList.add('alert-danger');
+          msgBox.textContent = data.error || 'Failed to create resource.';
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Add Resource';
+        }
+      } catch (err) {
+        msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+        msgBox.classList.add('alert-danger');
+        msgBox.textContent = 'Error: ' + err.message;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Add Resource';
+      }
+    });
+  </script>
+</body>
+</html>

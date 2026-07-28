@@ -1,0 +1,36 @@
+<!DOCTYPE html><html lang="en"><head><%- include('partials/head',{title:'Add Member — CWA CRM'}) %></head>
+<body>
+<%- include('partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('partials/topbar',{user}) %>
+  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-user-plus me-2 text-danger"></i>Add Member</h4>
+  <div class="card stat-card p-4" style="max-width:480px">
+    <form id="addMemberForm">
+      <div class="mb-3"><label class="form-label small fw-semibold">Full Name *</label><input type="text" name="name" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label small fw-semibold">Email *</label><input type="email" name="email" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label small fw-semibold">Password * <span class="text-secondary fw-normal">(min 8 chars)</span></label><input type="password" name="password" class="form-control" minlength="8" required></div>
+      <div class="mb-3"><label class="form-label small fw-semibold">Role *</label>
+        <select name="role" class="form-select">
+          <option value="emp">Employee</option>
+          <% if(user.role==='super_admin'){ %><option value="admin">Admin</option><% } %>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Create Account</button>
+    </form>
+    <div id="msg" class="alert mt-3 d-none"></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('addMemberForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const res=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(fd.entries()))});
+  const data=await res.json();
+  const box=document.getElementById('msg');
+  box.classList.remove('d-none');
+  if(res.ok){box.classList.add('alert-success');box.textContent=`Account created for ${data.email} (${data.role}).`;e.target.reset();}
+  else{box.classList.add('alert-danger');box.textContent=data.error||'Failed.';}
+});
+</script>
+</body></html>

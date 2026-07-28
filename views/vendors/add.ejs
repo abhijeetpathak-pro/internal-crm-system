@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="en"><head><%- include('../partials/head',{title:'Add Vendor — CWA CRM'}) %></head>
+<body>
+<%- include('../partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('../partials/topbar',{user}) %>
+  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-plus me-2 text-danger"></i>Add Vendor</h4>
+  <div class="card stat-card p-4" style="max-width:580px">
+    <form id="addVendorForm">
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label small fw-semibold">Vendor Name <span class="text-danger">*</span></label>
+          <input type="text" name="vendor_name" class="form-control" required></div>
+        <div class="col-md-4"><label class="form-label small fw-semibold">Short Code <span class="text-danger">*</span></label>
+          <input type="text" name="short_code" class="form-control" maxlength="10" placeholder="e.g. WIT" required>
+          <div class="form-text" style="font-size:.7rem">Used in Resource IDs</div></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">Website</label>
+          <input type="url" name="website" class="form-control" placeholder="https://vendor.com"></div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">Phone</label>
+          <input type="text" name="phone" class="form-control"></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Email</label>
+          <input type="email" name="email" class="form-control"></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Address</label>
+          <textarea name="address" class="form-control" rows="2"></textarea></div>
+        <div class="col-12"><hr><div class="fw-semibold small mb-2">Point of Contact (Optional)</div></div>
+        <div class="col-md-6"><label class="form-label small">POC Name</label><input type="text" name="poc_name" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label small">POC Email</label><input type="email" name="poc_email" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label small">POC Phone</label><input type="text" name="poc_phone" class="form-control"></div>
+      </div>
+      <button type="submit" class="btn btn-primary mt-3">Save Vendor</button>
+    </form>
+    <div id="msg" class="alert mt-3 d-none"></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('addVendorForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const data=Object.fromEntries(fd.entries());
+  const {poc_name,poc_email,poc_phone,...vendorData}=data;
+  const res=await fetch('/api/vendors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(vendorData)});
+  const result=await res.json();
+  const box=document.getElementById('msg');
+  if(res.ok){
+    if(poc_name){await fetch(`/api/vendors/${result.id}/pocs`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({poc_name,poc_email,poc_phone})});}
+    window.location=`/vendors/${result.id}`;
+  }else{box.classList.remove('d-none');box.classList.add('alert-danger');box.textContent=result.error||'Failed.';}
+});
+</script>
+</body></html>

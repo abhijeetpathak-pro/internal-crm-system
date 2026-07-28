@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="en"><head><%- include('partials/head',{title:'License Key — CWA CRM'}) %></head>
+<body>
+<%- include('partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('partials/topbar',{user}) %>
+  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-key me-2 text-danger"></i>License Key</h4>
+  <% if(current){ %>
+  <% const isExpired=new Date(current.valid_until)<new Date(); %>
+  <div class="card stat-card p-3 mb-4" style="max-width:520px">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="text-secondary small">Current Status</span>
+      <span class="badge <%= isExpired?'bg-danger':'bg-success' %>"><%= isExpired?'Expired':'Active' %></span>
+    </div>
+    <div class="small text-secondary">Key</div><div class="fw-semibold mb-2"><%= current.license_key %></div>
+    <div class="small text-secondary">Valid Until</div><div class="fw-semibold mb-2"><%= current.valid_until %></div>
+    <div class="small text-secondary">Renewed By</div><div class="fw-semibold"><%= current.activated_by_name||'—' %></div>
+  </div>
+  <% }else{ %>
+  <div class="alert alert-warning" style="max-width:520px">No license yet. Admin/Emp cannot access the CRM until you add one below.</div>
+  <% } %>
+  <div class="card stat-card p-3" style="max-width:520px">
+    <div class="fw-semibold mb-3">Renew / Enter License Key</div>
+    <form method="POST" action="/super-admin/license">
+      <div class="mb-3"><label class="form-label small">License Key</label><input type="text" name="license_key" class="form-control" required placeholder="e.g. CWA-2025-JULY"></div>
+      <div class="mb-3"><label class="form-label small">Valid Until</label><input type="date" name="valid_until" class="form-control" required></div>
+      <button type="submit" class="btn btn-primary">Save License</button>
+    </form>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+</body></html>

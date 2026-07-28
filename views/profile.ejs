@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="en"><head><%- include('partials/head',{title:'Profile — CWA CRM'}) %></head>
+<body>
+<%- include('partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('partials/topbar',{user}) %>
+  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-id-badge me-2 text-danger"></i>My Profile</h4>
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card stat-card p-4 text-center">
+        <!-- Point: user can upload their own profile picture. Shows the
+             uploaded avatar if one exists, otherwise the default icon. -->
+        <% if(profile.avatar_path){ %>
+        <img src="<%= profile.avatar_path %>" class="mx-auto mb-3 rounded-circle" style="width:72px;height:72px;object-fit:cover;border:2px solid #fdf2f2">
+        <% }else{ %>
+        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle" style="width:72px;height:72px;background:#fdf2f2;font-size:2rem;color:#C0392B">
+          <i class="fa-solid fa-user"></i></div>
+        <% } %>
+        <h5 class="fw-semibold mb-0"><%= profile.name %></h5>
+        <div class="text-secondary small mb-2"><%= profile.email %></div>
+        <span class="badge bg-primary text-capitalize"><%= profile.role.replace('_',' ') %></span>
+
+        <form method="POST" action="/profile/avatar" enctype="multipart/form-data" class="mt-3">
+          <input type="file" name="avatar" id="avatarInput" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control form-control-sm mb-2" required>
+          <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="fa-solid fa-camera me-1"></i>Update Photo</button>
+        </form>
+
+        <hr>
+        <div class="text-start small">
+          <div class="row mb-2"><div class="col-5 text-secondary">Account ID</div><div class="col-7 fw-semibold">#<%= profile.id %></div></div>
+          <div class="row mb-2"><div class="col-5 text-secondary">Status</div><div class="col-7"><span class="badge <%= profile.status==='active'?'bg-success':'bg-danger' %>"><%= profile.status %></span></div></div>
+          <div class="row"><div class="col-5 text-secondary">Joined</div><div class="col-7 fw-semibold"><%= new Date(profile.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) %></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <% if(success){ %><div class="alert alert-success py-2 small"><%= success %></div><% } %>
+      <% if(error){ %><div class="alert alert-danger py-2 small"><%= error %></div><% } %>
+
+      <!-- Point: user can change their own display name -->
+      <div class="card stat-card p-4 mb-3">
+        <h6 class="fw-semibold mb-3"><i class="fa-solid fa-id-card me-2 text-danger"></i>Edit Name</h6>
+        <form method="POST" action="/profile/name" class="d-flex gap-2">
+          <input type="text" name="name" class="form-control" value="<%= profile.name %>" maxlength="255" required>
+          <button type="submit" class="btn btn-primary text-nowrap">Save</button>
+        </form>
+      </div>
+
+      <div class="card stat-card p-4">
+        <h6 class="fw-semibold mb-3"><i class="fa-solid fa-lock me-2 text-danger"></i>Change Password</h6>
+        <form method="POST" action="/profile/password">
+          <div class="mb-3"><label class="form-label small">Current Password</label><input type="password" name="current_password" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label small">New Password</label><input type="password" name="new_password" class="form-control" minlength="8" required></div>
+          <div class="mb-3"><label class="form-label small">Confirm New Password</label><input type="password" name="confirm_password" class="form-control" minlength="8" required></div>
+          <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+</body></html>

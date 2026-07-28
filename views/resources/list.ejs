@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head',{title:heading+' — CWA CRM'}) %>
+  <style>
+    /* ── 3-DOT DROPDOWN FIX ── */
+    .dropdown-toggle-no-caret::after {
+      display: none !important;
+    }
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid #dee2e6;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6B7280;
+      transition: all 0.15s;
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+    }
+    .action-btn:hover {
+      background: #f3f4f6;
+      border-color: #C0392B;
+      color: #C0392B;
+    }
+    .dropdown-menu {
+      min-width: 160px;
+      z-index: 1060 !important; /* Higher z-index to ensure it appears above everything */
+    }
+    .dropdown-item {
+      font-size: 0.85rem;
+      padding: 0.4rem 1rem;
+    }
+    .dropdown-item:hover {
+      background: #f8f9fa;
+    }
+    .dropdown-item i {
+      width: 18px;
+      text-align: center;
+    }
+
+    /* Fix table container to not clip dropdown */
+    .table-wrap {
+      overflow: visible !important;
+      position: relative;
+    }
+    .table-wrap .table {
+      margin-bottom: 0;
+    }
+    
+    /* Ensure dropdowns aren't clipped by table cells */
+    .resource-table td {
+      position: relative;
+      overflow: visible !important;
+    }
+    
+    /* Dropdown container inside table cell */
+    .resource-table td .dropdown {
+      position: static;
+    }
+    
+    .resource-table td .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 5px;
+    }
+
+    /* ── FIX COLUMN WIDTH ── */
+    .resource-table th, .resource-table td {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+    .resource-table .col-uid { max-width: 120px; }
+    .resource-table .col-name { max-width: 150px; }
+    .resource-table .col-vendor { max-width: 120px; }
+    .resource-table .col-budget { max-width: 80px; }
+    .resource-table .col-exp { max-width: 90px; }
+    .resource-table .col-empname { max-width: 120px; }
+    .resource-table .col-profile { max-width: 70px; }
+    .resource-table .col-location { max-width: 110px; }
+    
+    .resource-table td .ellipsis {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    /* Fix for action column */
+    .resource-table .action-col {
+      width: 60px;
+      overflow: visible !important;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+    
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-semibold mb-0"><i class="fa-solid fa-user-tie me-2 text-danger"></i><%= heading %></h4>
+      <a href="/resources/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Resource</a>
+    </div>
+
+    <!-- ── FILTER BAR ── -->
+    <div class="filter-bar d-flex gap-2 align-items-center mb-3 flex-wrap">
+      <select id="filterType" class="form-select form-select-sm w-auto" onchange="applyFilter()">
+        <option value="">All Types</option>
+        <option value="In-House">In-House</option>
+        <option value="Vendor">Vendor</option>
+      </select>
+      
+      <select id="filterStatus" class="form-select form-select-sm w-auto" onchange="applyFilter()">
+        <option value="">All Status</option>
+        <option value="Available">Available</option>
+        <option value="Mapped">Mapped</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      
+      <input type="text" id="searchInput" class="form-control form-control-sm w-auto" placeholder="Search..." onkeyup="applyFilter()">
+      
+      <span class="badge bg-secondary" id="resultCount">0 results</span>
+    </div>
+
+    <div class="card stat-card p-0">
+      <div class="table-wrap">
+        <table class="table table-sm align-middle mb-0 resource-table" id="resourceTable">
+          <thead>
+            <tr class="text-secondary small text-uppercase border-bottom">
+              <th class="col-uid ps-3">Unique ID</th>
+              <th class="col-name">Name</th>
+              <th class="col-vendor">Vendor Name</th>
+              <th class="col-budget">Budget</th>
+              <th class="col-exp">Experience</th>
+              <% if(user.role==='admin' || user.role==='super_admin'){ %>
+              <th class="col-empname">Submit EmpName</th>
+              <% } %>
+              <th class="col-profile text-center">Profile</th>
+              <th class="col-location">Location</th>
+              <th class="text-center action-col" style="width:60px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="resourceBody">
+            <% resources.forEach(function(r){ %>
+            <tr id="row-<%= r.id %>" data-type="<%= r.type %>" data-status="<%= r.status || 'Available' %>"
+                data-search="<%= [r.unique_uid, r.resource_name, r.vendor_name, r.skills, r.submitted_by_name].filter(Boolean).join(' ').toLowerCase() %>">
+              <td class="ps-3"><code class="small"><%= r.unique_uid %></code></td>
+              <td><a href="/resources/<%= r.id %>" class="fw-semibold text-decoration-none" style="color:#1A1A1A"><span class="ellipsis"><%= r.resource_name %></span></a></td>
+              <td><span class="ellipsis"><%= r.vendor_name || '—' %></span></td>
+              <td><span class="ellipsis"><%= r.salary_lpm ? r.salary_lpm + ' lpm' : '—' %></span></td>
+              <td class="small text-secondary"><span class="ellipsis"><%= r.experience_years ? r.experience_years+' yrs' : '—' %></span></td>
+              <% if(user.role==='admin' || user.role==='super_admin'){ %>
+              <td class="small text-secondary"><span class="ellipsis"><%= r.submitted_by_name || '—' %></span></td>
+              <% } %>
+              <td class="text-center">
+                <% if(r.cv_path){ %>
+                <a href="<%= r.cv_path %>" target="_blank" class="text-decoration-none" title="View CV/Profile"><i class="fa-solid fa-file-lines text-danger"></i></a>
+                <% }else{ %>
+                <span class="text-secondary">—</span>
+                <% } %>
+              </td>
+              <td class="small text-secondary"><span class="ellipsis"><%= r.current_location||'—' %></span></td>
+              <td class="text-center action-col">
+                <!-- ── 3-DOT DROPDOWN ──
+                     Fixed: Proper Bootstrap dropdown with data-bs-auto-close="outside" -->
+                <div class="dropdown d-inline-block">
+                  <button class="action-btn dropdown-toggle-no-caret" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Actions">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1">
+                    <li><a class="dropdown-item" href="/resources/<%= r.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="openEdit(<%= r.id %>);return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="delRes(<%= r.id %>);return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <% }) %>
+            <% if(!resources.length){ %><tr><td colspan="9" class="text-center py-4 text-secondary">Nothing here yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0"><h5 class="modal-title fw-semibold">Edit Resource</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="editModalBody"><div class="text-center py-3"><div class="spinner-border spinner-border-sm text-danger"></div> Loading...</div></div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="submitEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // All manual dropdown handlers have been removed - Bootstrap handles everything natively
+    // The key fixes were:
+    // 1. Added data-bs-auto-close="outside" to dropdown buttons
+    // 2. Made table cells and container overflow visible
+    // 3. Added proper CSS for dropdown positioning
+    // 4. Removed any conflicting manual JavaScript handlers
+
+    function applyFilter() {
+      const type = document.getElementById('filterType').value;
+      const status = document.getElementById('filterStatus').value;
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#resourceBody tr[data-type]');
+      let count = 0;
+
+      rows.forEach(function(row) {
+        const rowType = row.dataset.type || '';
+        const rowStatus = row.dataset.status || '';
+        const rowSearch = row.dataset.search || '';
+
+        let show = true;
+        if (type && rowType !== type) show = false;
+        if (status && rowStatus !== status) show = false;
+        if (search && !rowSearch.includes(search)) show = false;
+
+        row.style.display = show ? '' : 'none';
+        if (show) count++;
+      });
+
+      document.getElementById('resultCount').textContent = count + ' results';
+    }
+
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+    let currentRes = null;
+
+    async function openEdit(id) {
+      document.getElementById('editModalBody').innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-danger"></div> Loading...</div>';
+      editModal.show();
+      try {
+        const res = await fetch('/api/resources/' + id);
+        const r = await res.json();
+        currentRes = r;
+
+        const isVendor = r.type === 'Vendor';
+        document.getElementById('editModalBody').innerHTML = `
+          <input type="hidden" id="eId" value="${r.id}">
+          <div class="row g-2">
+            <div class="col-md-6"><label class="form-label small">Name *</label><input type="text" id="eName" class="form-control form-control-sm" value="${r.resource_name||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Title</label><input type="text" id="eTitle" class="form-control form-control-sm" value="${r.title||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Experience (yrs)</label><input type="number" id="eExperience" class="form-control form-control-sm" step="0.5" min="0" value="${r.experience_years||''}"></div>
+            <div class="col-md-8"><label class="form-label small">Skills *</label><input type="text" id="eSkills" class="form-control form-control-sm" value="${r.skills||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Salary lpm</label><input type="number" id="eSalary" class="form-control form-control-sm" step="0.1" value="${r.salary_lpm||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" id="eCurLoc" class="form-control form-control-sm" value="${r.current_location||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" id="ePrefLoc" class="form-control form-control-sm" value="${r.preferred_location||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Type</label>
+              <select id="eType" class="form-select form-select-sm" onchange="toggleEditFields()">
+                <option value="In-House" ${!isVendor?'selected':''}>In-House</option>
+                <option value="Vendor" ${isVendor?'selected':''}>Vendor</option>
+              </select>
+            </div>
+            <div class="col-md-4"><label class="form-label small">Status</label>
+              <select id="eStatus" class="form-select form-select-sm">
+                <option value="Available" ${r.status==='Available'?'selected':''}>Available</option>
+                <option value="Mapped" ${r.status==='Mapped'?'selected':''}>Mapped</option>
+                <option value="Inactive" ${r.status==='Inactive'?'selected':''}>Inactive</option>
+              </select>
+            </div>
+            <div id="eInhouse" class="col-12 row g-2 ${isVendor?'d-none':''}">
+              <div class="col-md-6"><label class="form-label small">Managed By</label><input type="text" id="eMgd" class="form-control form-control-sm" value="${r.managed_by||''}"></div>
+              <div class="col-md-6"><label class="form-label small">Phone</label><input type="text" id="ePhone" class="form-control form-control-sm" value="${r.contact_number||''}"></div>
+              <div class="col-md-6"><label class="form-label small">Email</label><input type="email" id="eEmail" class="form-control form-control-sm" value="${r.email||''}"></div>
+              <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" id="eLinkedin" class="form-control form-control-sm" value="${r.linkedin||''}"></div>
+            </div>
+            <div id="eVendorWrap" class="col-12 row g-2 ${!isVendor?'d-none':''}">
+              <div class="col-md-6"><label class="form-label small">Vendor ID</label><input type="text" id="eVendorId" class="form-control form-control-sm" value="${r.vendor_id||''}" placeholder="Vendor ID number"></div>
+              <div class="col-md-6"><label class="form-label small">POC ID</label><input type="text" id="ePocId" class="form-control form-control-sm" value="${r.poc_id||''}" placeholder="POC ID number"></div>
+            </div>
+          </div>
+          <div id="editMsg" class="alert mt-2 d-none py-1 small"></div>
+        `;
+      } catch (err) {
+        document.getElementById('editModalBody').innerHTML = '<div class="alert alert-danger">Failed to load resource data.</div>';
+      }
+    }
+
+    function toggleEditFields() {
+      const isVendor = document.getElementById('eType').value === 'Vendor';
+      document.getElementById('eInhouse').classList.toggle('d-none', isVendor);
+      document.getElementById('eVendorWrap').classList.toggle('d-none', !isVendor);
+    }
+
+    async function submitEdit() {
+      const id = document.getElementById('eId').value;
+      const type = document.getElementById('eType').value;
+      const payload = {
+        resource_name: document.getElementById('eName').value,
+        title: document.getElementById('eTitle').value,
+        experience_years: document.getElementById('eExperience').value,
+        skills: document.getElementById('eSkills').value,
+        type: type,
+        status: document.getElementById('eStatus').value,
+        salary_lpm: document.getElementById('eSalary').value,
+        current_location: document.getElementById('eCurLoc').value,
+        preferred_location: document.getElementById('ePrefLoc').value,
+      };
+      if (type === 'In-House') {
+        payload.managed_by = document.getElementById('eMgd').value;
+        payload.contact_number = document.getElementById('ePhone').value;
+        payload.email = document.getElementById('eEmail').value;
+        payload.linkedin = document.getElementById('eLinkedin').value;
+      } else {
+        payload.vendor_id = document.getElementById('eVendorId').value;
+        payload.poc_id = document.getElementById('ePocId').value;
+      }
+      const res = await fetch('/api/resources/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const msg = document.getElementById('editMsg');
+      if (res.ok) {
+        location.reload();
+      } else {
+        msg.className = 'alert alert-danger mt-2 py-1 small';
+        msg.textContent = 'Failed to update resource.';
+      }
+    }
+
+    async function delRes(id) {
+      if (!confirm('Delete this resource? This cannot be undone.')) return;
+      const res = await fetch('/api/resources/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        document.getElementById('row-' + id)?.remove();
+        applyFilter();
+      } else {
+        alert('Failed to delete.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      applyFilter();
+    });
+  </script>
+</body>
+</html>

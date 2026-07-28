@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head',{title:heading+' — CWA CRM'}) %>
+  <style>
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid #dee2e6;
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #6B7280;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .action-btn:hover {
+      background: #fee2e2;
+      border-color: #C0392B;
+      color: #C0392B;
+    }
+    .role-badge {
+      font-size: 0.7rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .role-badge.super_admin { background: #7c3aed; color: #fff; }
+    .role-badge.admin { background: #2563eb; color: #fff; }
+    .role-badge.emp { background: #16a34a; color: #fff; }
+  </style>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-semibold mb-0">
+        <i class="fa-solid fa-users me-2 text-danger"></i><%= heading || 'Employees' %>
+      </h4>
+      <a href="/members/add" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-plus me-1"></i>Add Employee
+      </a>
+    </div>
+
+    <div class="card stat-card p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr class="text-secondary small text-uppercase border-bottom">
+              <th class="ps-3" style="width:50px">#</th>
+              <th style="min-width:120px">Name</th>
+              <th style="min-width:150px">Email</th>
+              <th style="width:120px">Role</th>
+              <th style="width:110px">Added</th>
+              <th class="text-center" style="width:70px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="membersBody">
+            <% if(typeof users !== 'undefined' && users && users.length > 0){ %>
+              <% users.forEach(function(u, index){ %>
+              <tr id="row-<%= u.id %>">
+                <td class="ps-3"><%= index + 1 %></td>
+                <td class="fw-semibold"><%= u.name %></td>
+                <td class="small text-secondary"><%= u.email %></td>
+                <td>
+                  <span class="role-badge <%= u.role %>">
+                    <%= u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Employee' %>
+                  </span>
+                </td>
+                <td class="small text-secondary">
+                  <% if(u.created_at){ %>
+                    <%= new Date(u.created_at).toLocaleDateString('en-IN') %>
+                  <% }else{ %>
+                    —
+                  <% } %>
+                </td>
+                <td class="text-center">
+                  <% if(user.id !== u.id && u.role !== 'super_admin'){ %>
+                  <button class="action-btn" onclick="deleteUser(<%= u.id %>, '<%= u.name %>')" title="Delete Employee">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                  <% }else if(user.id === u.id){ %>
+                  <span class="text-secondary small">You</span>
+                  <% }else{ %>
+                  <span class="text-secondary">—</span>
+                  <% } %>
+                </td>
+              </tr>
+              <% }) %>
+            <% }else{ %>
+              <tr>
+                <td colspan="6" class="text-center py-4 text-secondary">No employees added yet.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DELETE CONFIRMATION MODAL ── -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h6 class="modal-title fw-semibold"><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Confirm Delete</h6>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small mb-0">Are you sure you want to delete <strong id="deleteName"></strong>?</p>
+          <p class="small text-secondary">This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-sm btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ── DELETE USER ──
+    let deleteId = null;
+    let deleteName = '';
+
+    function deleteUser(id, name) {
+      deleteId = id;
+      deleteName = name;
+      document.getElementById('deleteName').textContent = name;
+      const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+      modal.show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+      if (!deleteId) return;
+
+      try {
+        const res = await fetch('/api/users/' + deleteId, {
+          method: 'DELETE'
+        });
+
+        if (res.ok) {
+          const row = document.getElementById('row-' + deleteId);
+          if (row) row.remove();
+          const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+          if (modal) modal.hide();
+          updateSerialNumbers();
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Failed to delete employee.');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
+
+    function updateSerialNumbers() {
+      const rows = document.querySelectorAll('#membersBody tr');
+      let count = 1;
+      rows.forEach(function(row) {
+        if (row.querySelector('td[colspan]')) return;
+        const td = row.querySelector('td:first-child');
+        if (td) td.textContent = count++;
+      });
+    }
+  </script>
+</body>
+</html>

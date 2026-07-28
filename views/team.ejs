@@ -1,0 +1,131 @@
+<!DOCTYPE html><html lang="en"><head><%- include('partials/head',{title:'Team — CWA CRM'}) %></head>
+<body>
+<%- include('partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('partials/topbar',{user}) %>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-semibold mb-0"><i class="fa-solid fa-users me-2 text-danger"></i>Team Members</h4>
+    <a href="/members/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Member</a>
+  </div>
+
+  <% if(user.role==='super_admin' && counts){ %>
+  <div class="row g-3 mb-4">
+    <% [['super_admin','Super Admins','fa-user-astronaut','#C0392B',counts.super_admins],['admin','Admins','fa-user-shield','#3b82f6',counts.admins],['emp','Employees','fa-user','#22c55e',counts.emps]].forEach(([k,label,icon,color,count])=>{ %>
+    <div class="col-md-4"><div class="card stat-card p-3 d-flex flex-row align-items-center gap-3">
+      <div class="stat-icon" style="background:rgba(192,57,43,.1)"><i class="fa-solid <%= icon %>" style="color:<%= color %>"></i></div>
+      <div><div class="text-secondary small"><%= label %></div><div class="fw-bold fs-3"><%= count || 0 %></div></div>
+    </div></div>
+    <% }) %>
+  </div>
+  <% } %>
+
+  <div class="card stat-card p-0">
+    <table class="table align-middle mb-0">
+      <thead><tr class="text-secondary small text-uppercase border-bottom">
+        <th class="ps-3">Name</th><th>Email</th><th>Role</th><th>Status</th><th>Added By</th><th>Joined</th><th class="pe-3"></th>
+      </tr></thead>
+      <tbody>
+        <% members.forEach(m=>{ %>
+        <tr id="mrow-<%= m.id %>">
+          <td class="ps-3 fw-semibold"><%= m.name %></td>
+          <td class="small text-secondary"><%= m.email %></td>
+          <td><span class="badge rounded-pill" style="background:<%= m.role==='super_admin'?'#fdf2f2':m.role==='admin'?'#eff6ff':'#f0fdf4' %>;color:<%= m.role==='super_admin'?'#C0392B':m.role==='admin'?'#1e40af':'#166534' %>">
+            <%= m.role==='super_admin'?'Super Admin':m.role==='admin'?'Admin':'Employee' %>
+          </span></td>
+          <td><span class="badge <%= m.status==='active'?'bg-success':'bg-secondary' %>"><%= m.status %></span></td>
+          <td class="small text-secondary"><%= m.created_by_name||'—' %></td>
+          <td class="small text-secondary"><%= new Date(m.created_at).toLocaleDateString('en-IN') %></td>
+          <td class="pe-3 text-end">
+            <div class="dropdown">
+              <button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                <li><a class="dropdown-item" href="#" onclick="openReset(<%= m.id %>,'<%= m.name.replace(/'/g,"\\'") %>'); return false">
+                  <i class="fa-solid fa-key me-2 text-warning"></i>Reset Password
+                </a></li>
+                <% if(user.role==='super_admin' && m.role!=='super_admin'){ %>
+                <li><a class="dropdown-item" href="#" onclick="toggleStatus(<%= m.id %>,'<%= m.status %>'); return false">
+                  <i class="fa-solid fa-power-off me-2 text-secondary"></i><%= m.status==='active'?'Disable':'Enable' %>
+                </a></li>
+                <% } %>
+                <!-- Point: Delete used to be nested inside the super_admin-only
+                     block above, so an Admin never saw it at all — only
+                     Reset Password showed for them. Admin can now delete the
+                     Employee accounts they manage (same rule already used
+                     for Reset Password / role changes); Super Admin can
+                     delete anyone except other super admins. -->
+                <% if((user.role==='super_admin' && m.role!=='super_admin') || (user.role==='admin' && m.role==='emp')){ %>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="deleteMember(<%= m.id %>,'<%= m.name.replace(/'/g,"\\'") %>'); return false">
+                  <i class="fa-solid fa-trash me-2"></i>Delete
+                </a></li>
+                <% } %>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+        <% if(!members.length){ %><tr><td colspan="7" class="text-center py-4 text-secondary">No members yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0"><h5 class="modal-title fw-semibold">Reset Password</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="text-secondary small mb-3">Setting new password for: <strong id="resetName"></strong></p>
+        <input type="password" id="newPwd" class="form-control" placeholder="New Password (min 6 chars)">
+        <div id="resetMsg" class="alert mt-2 d-none py-2 small"></div>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="submitReset()"><i class="fa-solid fa-key me-1"></i>Set Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+let resetId=null;
+const resetModal=new bootstrap.Modal(document.getElementById('resetModal'));
+
+function openReset(id,name){
+  resetId=id;
+  document.getElementById('resetName').textContent=name;
+  document.getElementById('newPwd').value='';
+  document.getElementById('resetMsg').className='alert mt-2 d-none py-2 small';
+  resetModal.show();
+}
+
+async function submitReset(){
+  const pwd=document.getElementById('newPwd').value.trim();
+  const msg=document.getElementById('resetMsg');
+  if(pwd.length<6){msg.className='alert alert-danger mt-2 py-2 small';msg.textContent='Minimum 6 characters required.';return;}
+  const res=await fetch(`/api/team/${resetId}/reset-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({new_password:pwd})});
+  const data=await res.json();
+  if(res.ok){msg.className='alert alert-success mt-2 py-2 small';msg.textContent='Password reset successfully!';setTimeout(()=>resetModal.hide(),1500);}
+  else{msg.className='alert alert-danger mt-2 py-2 small';msg.textContent=data.error||'Failed.';}
+}
+
+async function toggleStatus(id,current){
+  const newStatus=current==='active'?'disabled':'active';
+  const res=await fetch(`/api/team/${id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newStatus})});
+  if(res.ok)location.reload(); else alert('Failed to update status.');
+}
+
+async function deleteMember(id,name){
+  if(!confirm(`Delete member "${name}"? This cannot be undone.`))return;
+  const res=await fetch(`/api/team/${id}`,{method:'DELETE'});
+  const data=await res.json();
+  if(res.ok)document.getElementById(`mrow-${id}`)?.remove();
+  else alert(data.error||'Failed to delete member.');
+}
+</script>
+</body></html>

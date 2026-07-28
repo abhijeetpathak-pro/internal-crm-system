@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head',{title:'Clients — CWA CRM'}) %>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-semibold mb-0"><i class="fa-solid fa-briefcase me-2 text-danger"></i>Clients</h4>
+      <a href="/clients/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Client</a>
+    </div>
+    <div class="card stat-card p-0">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr class="text-secondary small text-uppercase border-bottom">
+            <th class="ps-3">Company</th>
+            <th>Website</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th class="pe-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% clients.forEach(function(c){ %>
+          <tr id="crow-<%= c.id %>">
+            <td class="ps-3 fw-semibold"><%= c.company_name %></td>
+            <td class="small"><% if(c.website){ %><a href="<%= c.website %>" target="_blank" class="text-decoration-none" style="color:#C0392B"><%= c.website.replace(/^https?:\/\//,'').split('/')[0] %></a><% }else{ %>—<% } %></td>
+            <td class="small text-secondary"><%= c.phone||'—' %></td>
+            <td class="small text-secondary"><%= c.email||'—' %></td>
+            <td class="pe-3 text-end">
+              <div class="dropdown">
+                <button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown">
+                  <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                  <li><a class="dropdown-item" href="/clients/<%= c.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View & POCs</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="editClient('<%= c.id %>', '<%= c.company_name %>', '<%= c.website %>', '<%= c.phone %>', '<%= c.email %>', '<%= c.address %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="#" onclick="delClient('<%= c.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+          <% if(!clients.length){ %><tr><td colspan="5" class="text-center py-4 text-secondary">No clients yet.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Edit Client Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-semibold">Edit Client</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="eId">
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label small">Company Name *</label><input type="text" id="eName" class="form-control form-control-sm"></div>
+            <div class="col-md-6"><label class="form-label small">Website</label><input type="url" id="eWeb" class="form-control form-control-sm"></div>
+            <div class="col-md-6"><label class="form-label small">Phone</label><input type="text" id="ePhone" class="form-control form-control-sm"></div>
+            <div class="col-12"><label class="form-label small">Email</label><input type="email" id="eEmail" class="form-control form-control-sm"></div>
+            <div class="col-12"><label class="form-label small">Address</label><textarea id="eAddr" class="form-control form-control-sm" rows="2"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="submitEdit()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Fix dropdowns
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.dropdown-toggle').forEach(function(el) {
+        new bootstrap.Dropdown(el);
+      });
+    });
+
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    // EDIT FUNCTION - receives individual parameters (not JSON)
+    function editClient(id, name, website, phone, email, address) {
+      document.getElementById('eId').value = id;
+      document.getElementById('eName').value = name || '';
+      document.getElementById('eWeb').value = website || '';
+      document.getElementById('ePhone').value = phone || '';
+      document.getElementById('eEmail').value = email || '';
+      document.getElementById('eAddr').value = address || '';
+      editModal.show();
+    }
+
+    async function submitEdit() {
+      const id = document.getElementById('eId').value;
+      const res = await fetch('/api/clients/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name: document.getElementById('eName').value,
+          website: document.getElementById('eWeb').value,
+          phone: document.getElementById('ePhone').value,
+          email: document.getElementById('eEmail').value,
+          address: document.getElementById('eAddr').value
+        })
+      });
+      if (res.ok) {
+        location.reload();
+      } else {
+        alert('Failed to update.');
+      }
+    }
+
+    async function delClient(id) {
+      if (!confirm('Delete this client? All related data will also be deleted.')) return;
+      const res = await fetch('/api/clients/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        document.getElementById('crow-' + id)?.remove();
+      } else {
+        alert('Failed to delete.');
+      }
+    }
+  </script>
+</body>
+</html>

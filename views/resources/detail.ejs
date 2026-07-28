@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head',{title:resource.resource_name+' — CWA CRM'}) %>
+  <style>
+    /* Same pipeline-stage button palette as requirements/detail.ejs */
+    .stage-btn{font-size:.72rem;padding:.15rem .5rem;border-radius:20px;font-weight:600}
+    .stage-btn-arrow{background:#fff;color:#16a34a;border:1px solid #86efac}
+    .stage-btn-active-arrow{background:#16a34a;color:#fff;border:1px solid #16a34a}
+    .stage-btn-select{background:#fff;color:#15803d;border:1px solid #86efac}
+    .stage-btn-active-select{background:#15803d;color:#fff;border:1px solid #15803d}
+    .stage-btn-reject{background:#fff;color:#b91c1c;border:1px solid #fca5a5}
+    .stage-btn-active-reject{background:#b91c1c;color:#fff;border:1px solid #b91c1c}
+
+    /* ── JD SEE MORE ── */
+    .jd-container {
+      max-height: 100px;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      white-space: pre-wrap;
+      position: relative;
+    }
+    .jd-container.expanded {
+      max-height: none;
+    }
+    .jd-container::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 30px;
+      background: linear-gradient(transparent, #fff);
+      pointer-events: none;
+    }
+    .jd-container.expanded::after {
+      display: none;
+    }
+    .jd-toggle-btn {
+      cursor: pointer;
+      color: #C0392B;
+      font-weight: 600;
+      font-size: 0.85rem;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .jd-toggle-btn:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h4 class="fw-semibold mb-1"><%= resource.resource_name %></h4>
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge" style="background:#f3f4f6;color:#374151;font-weight:500"><%= resource.unique_uid %></span>
+          <span class="badge rounded-pill <%= resource.type==='In-House'?'':'bg-primary' %>" style="<%= resource.type==='In-House'?'background:#f0fdf4;color:#166534':'' %>"><%= resource.type %></span>
+          <span class="badge rounded-pill" style="background:<%= resource.status==='Mapped'?'#fef9c3':resource.status==='Inactive'?'#f3f4f6':'#dcfce7' %>;color:<%= resource.status==='Mapped'?'#854d0e':resource.status==='Inactive'?'#6b7280':'#166534' %>">
+            <i class="fa-solid fa-circle me-1" style="font-size:.5rem"></i><%= resource.status||'Available' %>
+          </span>
+        </div>
+      </div>
+      <% if(resource.cv_path){ %>
+      <a href="<%= resource.cv_path %>" target="_blank" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-file-arrow-down me-1"></i>Download CV
+      </a>
+      <% } %>
+    </div>
+
+    <div class="card stat-card p-3 mb-3">
+      <div class="row g-2 small">
+        <div class="col-md-4"><span class="text-secondary">Title:</span> <strong><%= resource.title||'—' %></strong></div>
+        
+        <!-- ✅ FIX 1: experience -> experience_years -->
+        <div class="col-md-4"><span class="text-secondary">Experience:</span> <strong><%= resource.experience_years ? resource.experience_years + ' yrs' : '—' %></strong></div>
+        
+        <div class="col-md-4"><span class="text-secondary">Skills:</span> <%= resource.skills||'—' %></div>
+        
+        <!-- ✅ FIX 2: salary_lpa -> salary_lpm -->
+        <div class="col-md-4"><span class="text-secondary">Salary:</span> <%= resource.salary_lpm ? resource.salary_lpm + ' LPM' : (resource.salary_lpa ? resource.salary_lpa + ' LPA' : '—') %></div>
+        
+        <div class="col-md-4"><span class="text-secondary">Current Location:</span> <%= resource.current_location||'—' %></div>
+        <div class="col-md-4"><span class="text-secondary">Preferred Location:</span> <%= resource.preferred_location||'—' %></div>
+        <% if(resource.type==='Vendor'){ %>
+        <div class="col-md-4"><span class="text-secondary">Vendor:</span> <%= resource.vendor_name||'—' %></div>
+        <div class="col-md-4"><span class="text-secondary">Vendor POC:</span> <%= resource.poc_name||'—' %></div>
+        <% }else{ %>
+        <div class="col-md-4"><span class="text-secondary">Managed By:</span> <%= resource.managed_by||'—' %></div>
+        <div class="col-md-4"><span class="text-secondary">Phone:</span> <%= resource.contact_number||'—' %></div>
+        <div class="col-md-4"><span class="text-secondary">Email:</span> <%= resource.email||'—' %></div>
+        <% if(resource.linkedin){ %><div class="col-md-4"><span class="text-secondary">LinkedIn:</span> <a href="<%= resource.linkedin %>" target="_blank" style="color:#C0392B">Profile</a></div><% } %>
+        <% } %>
+      </div>
+      
+      <!-- ─── JD SECTION WITH SEE MORE ─── -->
+      <% if(resource.jd){ %>
+      <hr>
+      <div class="small text-secondary mb-1">Job Description</div>
+      <div class="jd-container" id="jdContainer">
+        <%= resource.jd %>
+      </div>
+      <button class="jd-toggle-btn mt-1" onclick="toggleJD()" id="jdToggle">
+        <i class="fa-solid fa-chevron-down me-1"></i>See More
+      </button>
+      <% } %>
+    </div>
+
+    <div class="card stat-card p-3">
+      <div class="fw-semibold mb-3">Activity / Decision Log</div>
+      <form id="actForm" class="mb-3">
+        <div class="row g-2 mb-2">
+          <div class="col-12"><textarea id="actNote" class="form-control form-control-sm" rows="2" placeholder="Add an update..." required></textarea></div>
+          <div class="col-md-6">
+            <select id="actClient" class="form-select form-select-sm">
+              <option value="">— Sent to client (optional) —</option>
+              <% clients.forEach(function(c){ %><option value="<%= c.id %>"><%= c.company_name %></option><% }) %>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">Add Update</button>
+      </form>
+      <ul class="list-group list-group-flush">
+        <% if(activity && activity.length){ %>
+          <% activity.forEach(function(a){ %>
+          <li class="list-group-item px-0">
+            <div class="d-flex justify-content-between">
+              <strong class="small"><%= a.created_by_name||'Unknown' %></strong>
+              <span class="text-secondary small"><%= new Date(a.created_at).toLocaleString('en-IN') %></span>
+            </div>
+            <div class="small mt-1"><%= a.note %></div>
+            <div class="d-flex gap-1 flex-wrap mt-1">
+              <% if(a.company_name){ %>
+              <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #93c5fd">
+                <i class="fa-solid fa-briefcase me-1"></i><%= a.company_name %>
+              </span>
+              <% } %>
+              <% if(a.req_link_id && a.req_link_title){ %>
+              <a href="/requirements/<%= a.req_link_id %>" class="badge text-decoration-none" style="background:#fdf2f2;color:#C0392B;border:1px solid #f5b7b1">
+                <i class="fa-solid fa-clipboard-list me-1"></i>Requirement #<%= a.req_link_id %> — <%= a.req_link_title %>
+              </a>
+              <% } %>
+            </div>
+          </li>
+          <% }) %>
+        <% }else{ %>
+          <li class="list-group-item px-0 text-secondary small">No updates yet.</li>
+        <% } %>
+      </ul>
+    </div>
+
+    <!-- Mapped Requirements panel -->
+    <div class="card stat-card p-3 mt-3">
+      <div class="fw-semibold mb-3"><i class="fa-solid fa-diagram-project me-1 text-danger"></i>Mapped Requirements</div>
+      <% if(!mappedRequirements || !mappedRequirements.length){ %>
+        <div class="text-secondary small text-center py-2">Not mapped to any requirement yet.</div>
+      <% }else{ %>
+        <div class="d-flex flex-column gap-2">
+          <% mappedRequirements.forEach(function(mr){ %>
+          <div class="p-2 rounded border" style="background:#fdf2f2">
+            <div class="d-flex align-items-center justify-content-between" onclick="window.location='/requirements/<%= mr.id %>'" style="cursor:pointer">
+              <div class="small fw-semibold"><i class="fa-solid fa-clipboard-list me-1 text-secondary"></i>Requirement #<%= mr.id %> — <%= mr.title %></div>
+              <i class="fa-solid fa-chevron-right text-secondary small"></i>
+            </div>
+            <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-req-id="<%= mr.id %>">
+              <% ['L1','L2','L3'].forEach(function(st){ %>
+              <button type="button" class="btn btn-sm stage-btn <%= mr.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>" data-stage="<%= st %>"><%= st %> <i class="fa-solid fa-forward"></i></button>
+              <% }) %>
+              <button type="button" class="btn btn-sm stage-btn <%= mr.stage==='Select'?'stage-btn-active-select':'stage-btn-select' %>" data-stage="Select">Select</button>
+              <button type="button" class="btn btn-sm stage-btn <%= mr.stage==='Reject'?'stage-btn-active-reject':'stage-btn-reject' %>" data-stage="Reject">Reject</button>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.dropdown-toggle').forEach(function(el) {
+        new bootstrap.Dropdown(el);
+      });
+    });
+
+    function toggleJD() {
+      const container = document.getElementById('jdContainer');
+      const btn = document.getElementById('jdToggle');
+      if (container.classList.contains('expanded')) {
+        container.classList.remove('expanded');
+        btn.innerHTML = '<i class="fa-solid fa-chevron-down me-1"></i>See More';
+      } else {
+        container.classList.add('expanded');
+        btn.innerHTML = '<i class="fa-solid fa-chevron-up me-1"></i>See Less';
+      }
+    }
+
+    document.getElementById('actForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const note = document.getElementById('actNote').value.trim();
+      const clientId = document.getElementById('actClient').value;
+      if (!note) return;
+      try {
+        const res = await fetch('/api/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entity_type: 'resource',
+            entity_id: '<%= resource.id %>',
+            note: note,
+            ref_client_id: clientId || null
+          })
+        });
+        if (res.ok) {
+          location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Failed to add update.');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
+
+    document.querySelectorAll('.stage-btns').forEach(function(group) {
+      const requirementId = group.dataset.reqId;
+      group.querySelectorAll('.stage-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function(e) {
+          e.stopPropagation();
+          const stage = this.dataset.stage;
+          const res = await fetch('/api/requirements/' + requirementId + '/resource/<%= resource.id %>/stage', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: stage })
+          });
+          if (res.ok) {
+            location.reload();
+          } else {
+            const data = await res.json();
+            alert(data.error || 'Failed to update stage.');
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

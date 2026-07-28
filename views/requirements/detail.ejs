@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head',{title:requirement.title+' — CWA CRM'}) %>
+  <style>
+    #newResForm{display:none;border-top:2px solid #C0392B;margin-top:1rem;padding-top:1rem}
+    .workflow-tab{cursor:pointer;padding:.5rem 1rem;border-radius:8px;font-size:.85rem;font-weight:500;border:1.5px solid #dee2e6;background:#fff;color:#6B7280;transition:all .15s}
+    .workflow-tab.active{background:#C0392B;color:#fff;border-color:#C0392B}
+
+    /* Point 2B: pipeline stage buttons.
+       L1/L2/L3 = green "forward arrow" style; Select = solid green;
+       Reject = solid red. "-active-*" is the currently-selected stage
+       (filled in), the plain versions are outline/idle. */
+    .stage-btn{font-size:.72rem;padding:.15rem .5rem;border-radius:20px;font-weight:600}
+    .stage-btn-arrow{background:#fff;color:#16a34a;border:1px solid #86efac}
+    .stage-btn-active-arrow{background:#16a34a;color:#fff;border:1px solid #16a34a}
+    .stage-btn-select{background:#fff;color:#15803d;border:1px solid #86efac}
+    .stage-btn-active-select{background:#15803d;color:#fff;border:1px solid #15803d}
+    .stage-btn-reject{background:#fff;color:#b91c1c;border:1px solid #fca5a5}
+    .stage-btn-active-reject{background:#b91c1c;color:#fff;border:1px solid #b91c1c}
+
+    /* ── JD SEE MORE ── */
+    .jd-container {
+      max-height: 100px;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      white-space: pre-wrap;
+      position: relative;
+    }
+    .jd-container.expanded {
+      max-height: none;
+    }
+    .jd-container::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 30px;
+      background: linear-gradient(transparent, #fff);
+      pointer-events: none;
+    }
+    .jd-container.expanded::after {
+      display: none;
+    }
+    .jd-toggle-btn {
+      cursor: pointer;
+      color: #C0392B;
+      font-weight: 600;
+      font-size: 0.85rem;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .jd-toggle-btn:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('../partials/topbar',{user}) %>
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h4 class="fw-semibold mb-1"><%= requirement.title %></h4>
+        <!-- Point 2A: Open = green, Hold = grey. 'Closed' is never a stored
+             status, so it's never shown as a badge — see the button group. -->
+        <span class="badge rounded-pill" style="background:<%= requirement.status==='Hold'?'#f3f4f6':'#dcfce7' %>;color:<%= requirement.status==='Hold'?'#6b7280':'#15803d' %>"><%= requirement.status %></span>
+        <% if(requirement.mapped_resource_name){ %>
+          <span class="badge ms-1" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+            <i class="fa-solid fa-link me-1"></i><%= requirement.mapped_resource_name %> (<%= requirement.mapped_uid %>)
+          </span>
+        <% } %>
+      </div>
+      <!-- Point 2A: 3 buttons — Open (green), Hold (grey), Closed (red).
+           Clicking Closed asks for confirmation because it DELETES the
+           requirement everywhere (see routes/requirements.js POST /:id/status). -->
+      <div class="btn-group btn-group-sm" id="stToggle" data-id="<%= requirement.id %>">
+        <button class="btn" data-st="Open" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Open</button>
+        <button class="btn" data-st="Hold" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db">Hold</button>
+        <button class="btn" data-st="Closed" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">Closed</button>
+      </div>
+    </div>
+
+    <div class="card stat-card p-3 mb-3">
+      <div class="row g-2 small">
+        <div class="col-md-4"><span class="text-secondary">Client:</span> <strong><%= requirement.company_name||'—' %></strong></div>
+        <div class="col-md-4"><span class="text-secondary">POC:</span> <%= requirement.poc_name||'—' %></div>
+        <div class="col-md-4"><span class="text-secondary">Budget:</span> <%= requirement.budget||'—' %></div>
+      </div>
+      
+      <!-- ─── JD SECTION WITH SEE MORE ─── -->
+      <% if(requirement.jd){ %>
+      <hr>
+      <div class="small text-secondary mb-1">Job Description</div>
+      <div class="jd-container" id="jdContainer">
+        <%= requirement.jd %>
+      </div>
+      <button class="jd-toggle-btn mt-1" onclick="toggleJD()" id="jdToggle">
+        <i class="fa-solid fa-chevron-down me-1"></i>See More
+      </button>
+      <% } %>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-8">
+
+        <!-- ── FIX 11: Dynamic Resource Workflow ── -->
+        <div class="card stat-card p-3 mb-3">
+          <div class="fw-semibold mb-3"><i class="fa-solid fa-link me-2 text-danger"></i>Map Resource to this Requirement</div>
+
+          <!-- Tab selector -->
+          <div class="d-flex gap-2 mb-3">
+            <button class="workflow-tab active" id="tabDB" onclick="switchTab('db')">
+              <i class="fa-solid fa-database me-1"></i>Select From Database
+            </button>
+            <button class="workflow-tab" id="tabNew" onclick="switchTab('new')">
+              <i class="fa-solid fa-plus me-1"></i>Add New Resource
+            </button>
+          </div>
+
+          <!-- Case A: Select from Database -->
+          <div id="dbSection">
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <label class="form-label small">Type</label>
+                <select id="dbType" class="form-select form-select-sm" onchange="loadDbResources()">
+                  <option value="In-House">In-House</option>
+                  <option value="Vendor">Vendor</option>
+                </select>
+              </div>
+              <div id="dbVendorWrap" class="col-md-4 d-none">
+                <label class="form-label small">Vendor</label>
+                <select id="dbVendor" class="form-select form-select-sm" onchange="loadDbPocs()">
+                  <option value="">Select vendor...</option>
+                </select>
+              </div>
+              <div id="dbPocWrap" class="col-md-4 d-none">
+                <label class="form-label small">POC</label>
+                <select id="dbPoc" class="form-select form-select-sm" onchange="loadDbResources()">
+                  <option value="">All POCs</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Resource *</label>
+              <select id="dbResource" class="form-select form-select-sm">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Note *</label>
+              <textarea id="dbNote" class="form-control form-control-sm" rows="2" placeholder="e.g. Profile shared via email on 1st July"></textarea>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="submitDbResource()">
+              <i class="fa-solid fa-check me-1"></i>Map Resource
+            </button>
+          </div>
+
+          <!-- Case B: Add New Resource inline (slide down) -->
+          <div id="newResForm">
+            <form id="newResInlineForm" enctype="multipart/form-data">
+              <div class="row g-2">
+                <div class="col-md-6"><label class="form-label small">Resource Name *</label><input type="text" name="resource_name" class="form-control form-control-sm" required></div>
+                <div class="col-md-6"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" placeholder="e.g. Backend Developer"></div>
+                <div class="col-md-8"><label class="form-label small">Skills * (first = primary tech)</label><input type="text" name="skills" class="form-control form-control-sm" placeholder="Python, Django, AWS" required></div>
+                <div class="col-md-4"><label class="form-label small">Salary LPA</label><input type="number" name="salary_lpa" class="form-control form-control-sm" step="0.1"></div>
+                <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" name="current_location" class="form-control form-control-sm"></div>
+                <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" name="preferred_location" class="form-control form-control-sm"></div>
+                <div class="col-md-4">
+                  <label class="form-label small">Type *</label>
+                  <select name="type" id="nrType" class="form-select form-select-sm" onchange="toggleNrFields()">
+                    <option value="In-House">In-House</option>
+                    <option value="Vendor">Vendor</option>
+                  </select>
+                </div>
+                <div class="col-md-8">
+                  <label class="form-label small">CV Upload (PDF/DOC/DOCX)</label>
+                  <input type="file" name="cv" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
+                </div>
+
+                <!-- In-House fields -->
+                <div id="nrInhouse" class="col-12 row g-2">
+                  <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text" name="managed_by" class="form-control form-control-sm"></div>
+                  <div class="col-md-4"><label class="form-label small">Phone</label><input type="text" name="contact_number" class="form-control form-control-sm"></div>
+                  <div class="col-md-4"><label class="form-label small">Email</label><input type="email" name="email" class="form-control form-control-sm"></div>
+                  <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" name="linkedin" class="form-control form-control-sm"></div>
+                </div>
+
+                <!-- Vendor fields -->
+                <div id="nrVendor" class="col-12 row g-2 d-none">
+                  <div class="col-md-6">
+                    <label class="form-label small">Vendor</label>
+                    <select name="vendor_id" id="nrVendorSel" class="form-select form-select-sm" onchange="loadNrPocs()"></select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small">Vendor POC</label>
+                    <select name="poc_id" id="nrPocSel" class="form-select form-select-sm"></select>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label small">Note * (will appear in activity log)</label>
+                  <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="e.g. New resource added and mapped to this requirement" required></textarea>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm mt-2">
+                <i class="fa-solid fa-plus me-1"></i>Create & Map Resource
+              </button>
+              <div id="nrMsg" class="alert mt-2 d-none py-1 small"></div>
+            </form>
+          </div>
+
+          <div id="mapMsg" class="alert mt-2 d-none py-2 small"></div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card stat-card p-3">
+          <div class="fw-semibold mb-3">Activity / Decision Log</div>
+          <form id="actForm" class="mb-3">
+            <div class="mb-2"><textarea id="actNote" class="form-control form-control-sm" rows="2" placeholder="Add a manual update..." required></textarea></div>
+            <button type="submit" class="btn btn-sm btn-primary">Add Update</button>
+          </form>
+          <ul class="list-group list-group-flush">
+            <% activity.forEach(function(a){ %>
+            <li class="list-group-item px-0">
+              <div class="d-flex justify-content-between">
+                <strong class="small"><%= a.created_by_name||'Unknown' %></strong>
+                <span class="text-secondary small"><%= new Date(a.created_at).toLocaleString('en-IN') %></span>
+              </div>
+              <div class="small mt-1"><%= a.note %></div>
+              <% if(a.resource_name){ %>
+              <a href="/resources/<%= a.ref_resource_id %>" class="badge mt-1 text-decoration-none" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+                <i class="fa-solid fa-user-tie me-1"></i><%= a.resource_name %> (<%= a.unique_uid %>)
+              </a>
+              <% } %>
+            </li>
+            <% }) %>
+            <% if(!activity.length){ %><li class="list-group-item px-0 text-secondary small">No updates yet.</li><% } %>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Profiles Sent sidebar panel (Fix 5) — Point 2B: each resource sent
+           against this requirement gets its own 5-stage pipeline control
+           (L1/L2/L3/Reject/Select). The stage shown here always matches the
+           stage shown on that resource's own detail page, because both read
+           the same crm_requirement_resources row. -->
+      <div class="col-lg-4">
+        <div class="card stat-card p-3">
+          <div class="fw-semibold mb-2">
+            <i class="fa-solid fa-paper-plane me-1 text-danger"></i>Profiles Sent
+            <span class="badge bg-danger rounded-pill ms-1"><%= resourcesSent.length %></span>
+          </div>
+          <% if(!resourcesSent.length){ %>
+            <div class="text-secondary small text-center py-3">No profiles sent yet.</div>
+          <% }else{ %>
+            <div class="d-flex flex-column gap-2" style="max-height:520px;overflow-y:auto">
+              <% resourcesSent.forEach(function(rs,i){ %>
+              <div class="p-2 rounded border" style="background:#fdf2f2">
+                <div class="d-flex align-items-center justify-content-between" onclick="window.location='/resources/<%= rs.id %>'" style="cursor:pointer">
+                  <div>
+                    <div class="small fw-semibold"><%= i+1 %>. <%= rs.resource_name %></div>
+                    <div class="small text-secondary"><%= rs.skills?(rs.skills.split(',')[0].trim()):'—' %></div>
+                    <div class="small text-secondary"><%= rs.vendor_name||'In-House' %></div>
+                  </div>
+                  <i class="fa-solid fa-chevron-right text-secondary small"></i>
+                </div>
+                <!-- 5-stage pipeline buttons: L1/L2/L3 look like a forward
+                     arrow chain (green), Reject is red, Select is green.
+                     The currently-active stage is highlighted solid. -->
+                <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-resource-id="<%= rs.id %>">
+                  <% ['L1','L2','L3'].forEach(function(st){ %>
+                  <button type="button" class="btn btn-sm stage-btn <%= rs.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>" data-stage="<%= st %>"><%= st %> <i class="fa-solid fa-forward"></i></button>
+                  <% }) %>
+                  <button type="button" class="btn btn-sm stage-btn <%= rs.stage==='Select'?'stage-btn-active-select':'stage-btn-select' %>" data-stage="Select">Select</button>
+                  <button type="button" class="btn btn-sm stage-btn <%= rs.stage==='Reject'?'stage-btn-active-reject':'stage-btn-reject' %>" data-stage="Reject">Reject</button>
+                </div>
+              </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const REQ_ID = '<%= requirement.id %>';
+    const REQ_TITLE = '<%= requirement.title.replace(/`/g,"\\`") %>';
+
+    // ── JD TOGGLE ──
+    function toggleJD() {
+      const container = document.getElementById('jdContainer');
+      const btn = document.getElementById('jdToggle');
+      if (container.classList.contains('expanded')) {
+        container.classList.remove('expanded');
+        btn.innerHTML = '<i class="fa-solid fa-chevron-down me-1"></i>See More';
+      } else {
+        container.classList.add('expanded');
+        btn.innerHTML = '<i class="fa-solid fa-chevron-up me-1"></i>See Less';
+      }
+    }
+
+    // Status toggle: Open / Hold just update in place. Closed DELETES the
+    // requirement everywhere (see routes/requirements.js), so it asks for
+    // confirmation first and redirects to the list instead of reloading.
+    document.querySelectorAll('#stToggle button').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        const chosenStatus = this.dataset.st;
+        if (chosenStatus === 'Closed') {
+          const sure = confirm('Closing this requirement will permanently delete it, its resource pipeline, and its activity log. This cannot be undone. Continue?');
+          if (!sure) return;
+        }
+        const res = await fetch('/api/requirements/' + REQ_ID + '/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: chosenStatus })
+        });
+        const data = await res.json();
+        if (res.ok && data.deleted) {
+          window.location = '/requirements';
+        } else if (res.ok) {
+          location.reload();
+        } else {
+          alert(data.error || 'Failed to update status.');
+        }
+      });
+    });
+
+    // ── Point 2B: pipeline stage buttons ──────────────────────────────────────
+    // Every ".stage-btns" block belongs to one resource (data-resource-id).
+    // Clicking a stage button PATCHes the shared crm_requirement_resources
+    // row, which is exactly what the resource's own detail page reads too —
+    // so the two pages never fall out of sync with each other.
+    document.querySelectorAll('.stage-btns').forEach(function(group) {
+      const resourceId = group.dataset.resourceId;
+      group.querySelectorAll('.stage-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function(e) {
+          e.stopPropagation(); // don't trigger the card's "go to resource" click
+          const stage = this.dataset.stage;
+          const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId + '/stage', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: stage })
+          });
+          if (res.ok) {
+            location.reload();
+          } else {
+            const data = await res.json();
+            alert(data.error || 'Failed to update stage.');
+          }
+        });
+      });
+    });
+
+    // Activity log
+    document.getElementById('actForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const note = document.getElementById('actNote').value.trim();
+      if (!note) return;
+      const res = await fetch('/api/activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entity_type: 'requirement',
+          entity_id: REQ_ID,
+          note: note
+        })
+      });
+      if (res.ok) location.reload();
+    });
+
+    // ── Fix 11: Tab switching ──────────────────────────────────────────────────
+    function switchTab(tab) {
+      var isDb = tab === 'db';
+      document.getElementById('tabDB').className = 'workflow-tab' + (isDb ? ' active' : '');
+      document.getElementById('tabNew').className = 'workflow-tab' + (!isDb ? ' active' : '');
+      document.getElementById('dbSection').style.display = isDb ? 'block' : 'none';
+      document.getElementById('newResForm').style.display = !isDb ? 'block' : 'none';
+      if (!isDb) loadVendorsForNew();
+    }
+
+    // ── Case A: Database selection ────────────────────────────────────────────
+    async function loadDbResources() {
+      var type = document.getElementById('dbType').value;
+      var vendorId = document.getElementById('dbVendor').value;
+      var pocId = document.getElementById('dbPoc').value;
+      var vWrap = document.getElementById('dbVendorWrap');
+      var pWrap = document.getElementById('dbPocWrap');
+
+      if (type === 'Vendor') {
+        vWrap.classList.remove('d-none');
+        var vSelect = document.getElementById('dbVendor');
+        if (vSelect.options.length === 0 || vSelect.options[0].value === '') {
+          var vRes = await fetch('/api/vendors');
+          var vendors = await vRes.json();
+          vSelect.innerHTML = '<option value="">All vendors</option>' + vendors.map(function(v) {
+            return '<option value="' + v.id + '">' + v.vendor_name + '</option>';
+          }).join('');
+        }
+      } else {
+        vWrap.classList.add('d-none');
+        pWrap.classList.add('d-none');
+      }
+
+      var url = '/api/resources?type=' + type;
+      if (vendorId) url += '&vendor_id=' + vendorId;
+      var res = await fetch(url);
+      var resources = await res.json();
+      var rSelect = document.getElementById('dbResource');
+      if (resources.length) {
+        rSelect.innerHTML = '<option value="">Select resource...</option>' + resources.map(function(r) {
+          return '<option value="' + r.id + '">' + r.resource_name + ' — ' + r.unique_uid + '</option>';
+        }).join('');
+      } else {
+        rSelect.innerHTML = '<option value="">No resources found</option>';
+      }
+    }
+
+    async function loadDbPocs() {
+      var vendorId = document.getElementById('dbVendor').value;
+      var pWrap = document.getElementById('dbPocWrap');
+      if (vendorId) {
+        var res = await fetch('/api/pocs/vendor/' + vendorId);
+        var pocs = await res.json();
+        var pSelect = document.getElementById('dbPoc');
+        pSelect.innerHTML = '<option value="">All POCs</option>' + pocs.map(function(p) {
+          return '<option value="' + p.id + '">' + p.poc_name + '</option>';
+        }).join('');
+        pWrap.classList.remove('d-none');
+      } else {
+        pWrap.classList.add('d-none');
+      }
+      loadDbResources();
+    }
+
+    async function submitDbResource() {
+      var resourceId = document.getElementById('dbResource').value;
+      var note = document.getElementById('dbNote').value.trim();
+      var msg = document.getElementById('mapMsg');
+      if (!resourceId || !note) {
+        msg.className = 'alert alert-danger mt-2 py-2 small';
+        msg.textContent = 'Please select a resource and add a note.';
+        return;
+      }
+      var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resource_id: resourceId,
+          note: note,
+          req_title: REQ_TITLE
+        })
+      });
+      var data = await res.json();
+      if (res.ok) {
+        msg.className = 'alert alert-success mt-2 py-2 small';
+        msg.textContent = 'Resource mapped successfully! Status updated to Mapped.';
+        setTimeout(function() { location.reload(); }, 1200);
+      } else {
+        msg.className = 'alert alert-danger mt-2 py-2 small';
+        msg.textContent = data.error || 'Failed to map resource.';
+      }
+    }
+
+    // ── Case B: New Resource inline ───────────────────────────────────────────
+    function toggleNrFields() {
+      var isVendor = document.getElementById('nrType').value === 'Vendor';
+      document.getElementById('nrInhouse').classList.toggle('d-none', isVendor);
+      document.getElementById('nrVendor').classList.toggle('d-none', !isVendor);
+    }
+
+    async function loadVendorsForNew() {
+      var vSelect = document.getElementById('nrVendorSel');
+      if (vSelect.options.length > 1) return;
+      var res = await fetch('/api/vendors');
+      var vendors = await res.json();
+      vSelect.innerHTML = '<option value="">Select vendor...</option>' + vendors.map(function(v) {
+        return '<option value="' + v.id + '">' + v.vendor_name + ' (' + v.short_code + ')</option>';
+      }).join('');
+    }
+
+    async function loadNrPocs() {
+      var vendorId = document.getElementById('nrVendorSel').value;
+      if (!vendorId) return;
+      var res = await fetch('/api/pocs/vendor/' + vendorId);
+      var pocs = await res.json();
+      var pSelect = document.getElementById('nrPocSel');
+      pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(function(p) {
+        return '<option value="' + p.id + '">' + p.poc_name + '</option>';
+      }).join('');
+    }
+
+    document.getElementById('newResInlineForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var msg = document.getElementById('nrMsg');
+      var fd = new FormData(e.target);
+      fd.append('req_title', REQ_TITLE);
+      var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
+        method: 'POST',
+        body: fd
+      });
+      var data = await res.json();
+      if (res.ok) {
+        msg.className = 'alert alert-success mt-2 py-1 small';
+        msg.textContent = 'Resource created & mapped! Status set to Mapped.';
+        setTimeout(function() { location.reload(); }, 1200);
+      } else {
+        msg.className = 'alert alert-danger mt-2 py-1 small';
+        msg.textContent = data.error || 'Failed.';
+      }
+    });
+
+    // Init
+    loadDbResources();
+
+    // Fix dropdowns
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.dropdown-toggle').forEach(function(el) {
+        new bootstrap.Dropdown(el);
+      });
+    });
+  </script>
+</body>
+</html>

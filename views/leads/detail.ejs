@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head><%- include('../partials/head',{title:lead.name+' — CWA CRM'}) %></head>
+<body>
+<%- include('../partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('../partials/topbar',{user}) %>
+  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-bullseye me-2 text-danger"></i><%= lead.name %></h4>
+  <div class="card stat-card p-3 mb-3">
+    <div class="row g-2 small">
+      <div class="col-md-4"><span class="text-secondary">Email:</span> <%= lead.email||'—' %></div>
+      <div class="col-md-4"><span class="text-secondary">Phone:</span> <%= lead.phone||'—' %></div>
+      <div class="col-md-4"><span class="text-secondary">Source:</span> <span class="badge" style="background:#fefce8;color:#854d0e"><%= lead.source %></span></div>
+    </div>
+  </div>
+  <div class="card stat-card p-3">
+    <div class="fw-semibold mb-3">Activity / Decision Log</div>
+    <form id="actForm" class="mb-3">
+      <div class="mb-2"><textarea id="actNote" class="form-control form-control-sm" rows="2" placeholder="Add an update..." required></textarea></div>
+      <button type="submit" class="btn btn-sm btn-primary">Add Update</button>
+    </form>
+    <ul class="list-group list-group-flush">
+      <% activity.forEach(a=>{ %>
+      <li class="list-group-item px-0">
+        <div class="d-flex justify-content-between">
+          <strong class="small"><%= a.created_by_name||'Unknown' %></strong>
+          <span class="text-secondary small"><%= new Date(a.created_at).toLocaleString('en-IN') %></span>
+        </div>
+        <div class="small mt-1"><%= a.note %></div>
+      </li>
+      <% }) %>
+      <% if(!activity.length){ %><li class="list-group-item px-0 text-secondary small">No updates yet.</li><% } %>
+    </ul>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('actForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const note=document.getElementById('actNote').value.trim();
+  if(!note)return;
+  const res=await fetch('/api/activity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity_type:'lead',entity_id:'<%= lead.id %>',note})});
+  if(res.ok)location.reload();
+});
+</script>
+</body></html>

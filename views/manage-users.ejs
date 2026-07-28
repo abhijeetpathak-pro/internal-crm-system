@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><%- include('partials/head',{title:'Admin Powers — CWA CRM'}) %></head>
+<body>
+<%- include('partials/sidebar',{user,active}) %>
+<div class="main-content">
+  <%- include('partials/topbar',{user}) %>
+  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-user-shield me-2 text-danger"></i>Admin Powers Control</h4>
+  <p class="text-secondary small">Enable/disable accounts and switch roles between Admin and Employee.</p>
+  <div class="card stat-card p-3">
+    <table class="table align-middle mb-0">
+      <thead><tr class="text-secondary small text-uppercase border-bottom"><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% users.forEach(u=>{ %>
+        <tr id="urow-<%= u.id %>">
+          <td><%= u.name %></td>
+          <td class="text-secondary small"><%= u.email %></td>
+          <td><select class="form-select form-select-sm role-sel" data-id="<%= u.id %>" style="width:120px">
+            <option value="emp" <%= u.role==='emp'?'selected':'' %>>Employee</option>
+            <option value="admin" <%= u.role==='admin'?'selected':'' %>>Admin</option>
+          </select></td>
+          <td><span class="badge <%= u.status==='active'?'bg-success':'bg-secondary' %>"><%= u.status %></span></td>
+          <td>
+            <button class="btn btn-sm <%= u.status==='active'?'btn-outline-danger':'btn-outline-success' %> toggle-btn" data-id="<%= u.id %>" data-st="<%= u.status %>">
+              <%= u.status==='active'?'Disable':'Enable' %>
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+        <% if(!users.length){ %><tr><td colspan="5" class="text-center text-secondary py-4">No Admin/Emp accounts yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+document.querySelectorAll('.toggle-btn').forEach(btn=>{
+  btn.addEventListener('click',async()=>{
+    const newSt=btn.dataset.st==='active'?'disabled':'active';
+    const res=await fetch(`/super-admin/users/${btn.dataset.id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newSt})});
+    if(res.ok)location.reload(); else alert('Failed to update status.');
+  });
+});
+document.querySelectorAll('.role-sel').forEach(sel=>{
+  sel.addEventListener('change',async()=>{
+    await fetch(`/super-admin/users/${sel.dataset.id}/role`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:sel.value})});
+  });
+});
+</script>
+</body></html>
