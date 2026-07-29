@@ -7,10 +7,6 @@
     .workflow-tab{cursor:pointer;padding:.5rem 1rem;border-radius:8px;font-size:.85rem;font-weight:500;border:1.5px solid #dee2e6;background:#fff;color:#6B7280;transition:all .15s}
     .workflow-tab.active{background:#C0392B;color:#fff;border-color:#C0392B}
 
-    /* Point 2B: pipeline stage buttons.
-       L1/L2/L3 = green "forward arrow" style; Select = solid green;
-       Reject = solid red. "-active-*" is the currently-selected stage
-       (filled in), the plain versions are outline/idle. */
     .stage-btn{font-size:.72rem;padding:.15rem .5rem;border-radius:20px;font-weight:600}
     .stage-btn-arrow{background:#fff;color:#16a34a;border:1px solid #86efac}
     .stage-btn-active-arrow{background:#16a34a;color:#fff;border:1px solid #16a34a}
@@ -55,6 +51,10 @@
     .jd-toggle-btn:hover {
       text-decoration: underline;
     }
+
+    /* ── EXPERIENCE & SALARY FIELDS ── */
+    .field-label { font-weight: 600; font-size: 0.75rem; color: #6B7280; }
+    .field-value { font-weight: 600; font-size: 0.9rem; color: #1A1A1A; }
   </style>
 </head>
 <body>
@@ -65,8 +65,6 @@
     <div class="d-flex justify-content-between align-items-start mb-3">
       <div>
         <h4 class="fw-semibold mb-1"><%= requirement.title %></h4>
-        <!-- Point 2A: Open = green, Hold = grey. 'Closed' is never a stored
-             status, so it's never shown as a badge — see the button group. -->
         <span class="badge rounded-pill" style="background:<%= requirement.status==='Hold'?'#f3f4f6':'#dcfce7' %>;color:<%= requirement.status==='Hold'?'#6b7280':'#15803d' %>"><%= requirement.status %></span>
         <% if(requirement.mapped_resource_name){ %>
           <span class="badge ms-1" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
@@ -74,9 +72,6 @@
           </span>
         <% } %>
       </div>
-      <!-- Point 2A: 3 buttons — Open (green), Hold (grey), Closed (red).
-           Clicking Closed asks for confirmation because it DELETES the
-           requirement everywhere (see routes/requirements.js POST /:id/status). -->
       <div class="btn-group btn-group-sm" id="stToggle" data-id="<%= requirement.id %>">
         <button class="btn" data-st="Open" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Open</button>
         <button class="btn" data-st="Hold" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db">Hold</button>
@@ -107,7 +102,7 @@
     <div class="row g-3">
       <div class="col-lg-8">
 
-        <!-- ── FIX 11: Dynamic Resource Workflow ── -->
+        <!-- ─── Dynamic Resource Workflow ─── -->
         <div class="card stat-card p-3 mb-3">
           <div class="fw-semibold mb-3"><i class="fa-solid fa-link me-2 text-danger"></i>Map Resource to this Requirement</div>
 
@@ -159,14 +154,24 @@
             </button>
           </div>
 
-          <!-- Case B: Add New Resource inline (slide down) -->
+          <!-- Case B: Add New Resource inline -->
           <div id="newResForm">
             <form id="newResInlineForm" enctype="multipart/form-data">
               <div class="row g-2">
                 <div class="col-md-6"><label class="form-label small">Resource Name *</label><input type="text" name="resource_name" class="form-control form-control-sm" required></div>
                 <div class="col-md-6"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" placeholder="e.g. Backend Developer"></div>
                 <div class="col-md-8"><label class="form-label small">Skills * (first = primary tech)</label><input type="text" name="skills" class="form-control form-control-sm" placeholder="Python, Django, AWS" required></div>
-                <div class="col-md-4"><label class="form-label small">Salary LPA</label><input type="number" name="salary_lpa" class="form-control form-control-sm" step="0.1"></div>
+                
+                <!-- ✅ FIXED: Experience Years added -->
+                <div class="col-md-4"><label class="form-label small">Experience (yrs)</label>
+                  <input type="number" name="experience_years" class="form-control form-control-sm" step="0.5" min="0" placeholder="e.g. 5">
+                </div>
+                
+                <!-- ✅ Salary lpm -->
+                <div class="col-md-4"><label class="form-label small">Salary (lpm)</label>
+                  <input type="number" name="salary_lpm" class="form-control form-control-sm" step="0.1" placeholder="e.g. 12.5">
+                </div>
+                
                 <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" name="current_location" class="form-control form-control-sm"></div>
                 <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" name="preferred_location" class="form-control form-control-sm"></div>
                 <div class="col-md-4">
@@ -243,11 +248,7 @@
         </div>
       </div>
 
-      <!-- Profiles Sent sidebar panel (Fix 5) — Point 2B: each resource sent
-           against this requirement gets its own 5-stage pipeline control
-           (L1/L2/L3/Reject/Select). The stage shown here always matches the
-           stage shown on that resource's own detail page, because both read
-           the same crm_requirement_resources row. -->
+      <!-- Profiles Sent sidebar panel -->
       <div class="col-lg-4">
         <div class="card stat-card p-3">
           <div class="fw-semibold mb-2">
@@ -268,9 +269,6 @@
                   </div>
                   <i class="fa-solid fa-chevron-right text-secondary small"></i>
                 </div>
-                <!-- 5-stage pipeline buttons: L1/L2/L3 look like a forward
-                     arrow chain (green), Reject is red, Select is green.
-                     The currently-active stage is highlighted solid. -->
                 <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-resource-id="<%= rs.id %>">
                   <% ['L1','L2','L3'].forEach(function(st){ %>
                   <button type="button" class="btn btn-sm stage-btn <%= rs.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>" data-stage="<%= st %>"><%= st %> <i class="fa-solid fa-forward"></i></button>
@@ -305,9 +303,7 @@
       }
     }
 
-    // Status toggle: Open / Hold just update in place. Closed DELETES the
-    // requirement everywhere (see routes/requirements.js), so it asks for
-    // confirmation first and redirects to the list instead of reloading.
+    // Status toggle
     document.querySelectorAll('#stToggle button').forEach(function(btn) {
       btn.addEventListener('click', async function() {
         const chosenStatus = this.dataset.st;
@@ -331,16 +327,12 @@
       });
     });
 
-    // ── Point 2B: pipeline stage buttons ──────────────────────────────────────
-    // Every ".stage-btns" block belongs to one resource (data-resource-id).
-    // Clicking a stage button PATCHes the shared crm_requirement_resources
-    // row, which is exactly what the resource's own detail page reads too —
-    // so the two pages never fall out of sync with each other.
+    // Pipeline stage buttons
     document.querySelectorAll('.stage-btns').forEach(function(group) {
       const resourceId = group.dataset.resourceId;
       group.querySelectorAll('.stage-btn').forEach(function(btn) {
         btn.addEventListener('click', async function(e) {
-          e.stopPropagation(); // don't trigger the card's "go to resource" click
+          e.stopPropagation();
           const stage = this.dataset.stage;
           const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId + '/stage', {
             method: 'PATCH',
@@ -374,7 +366,7 @@
       if (res.ok) location.reload();
     });
 
-    // ── Fix 11: Tab switching ──────────────────────────────────────────────────
+    // Tab switching
     function switchTab(tab) {
       var isDb = tab === 'db';
       document.getElementById('tabDB').className = 'workflow-tab' + (isDb ? ' active' : '');
@@ -384,7 +376,7 @@
       if (!isDb) loadVendorsForNew();
     }
 
-    // ── Case A: Database selection ────────────────────────────────────────────
+    // Case A: Database selection
     async function loadDbResources() {
       var type = document.getElementById('dbType').value;
       var vendorId = document.getElementById('dbVendor').value;
@@ -467,7 +459,7 @@
       }
     }
 
-    // ── Case B: New Resource inline ───────────────────────────────────────────
+    // Case B: New Resource inline
     function toggleNrFields() {
       var isVendor = document.getElementById('nrType').value === 'Vendor';
       document.getElementById('nrInhouse').classList.toggle('d-none', isVendor);
@@ -518,7 +510,6 @@
     // Init
     loadDbResources();
 
-    // Fix dropdowns
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.dropdown-toggle').forEach(function(el) {
         new bootstrap.Dropdown(el);
