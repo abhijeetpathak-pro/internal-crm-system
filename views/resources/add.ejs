@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <%- include('../partials/head',{title:'Add Resource — CWA CRM'}) %>
+  <%- include('../partials/head',{title:(typeof heading !== 'undefined' ? heading : 'Add Resource') +' — CWA CRM'}) %>
   <style>
     .form-label { font-weight: 600; font-size: 0.85rem; }
     .form-control, .form-select { font-size: 0.85rem; }
@@ -35,12 +35,11 @@
             <input type="text" name="title" class="form-control" placeholder="e.g. Backend Developer">
           </div>
 
-          <!-- ─── ✅ EXPERIENCE ─── -->
+          <!-- ─── ✅ FIX: EXPERIENCE (experience_years) ─── -->
           <div class="col-md-3">
-            <label class="form-label">Experience</label>
-            <input type="text" name="experience" class="form-control" 
-                   placeholder="e.g. 5 years, 3-5 years">
-            <small class="text-secondary" style="font-size:0.7rem">e.g. 5 years, 3-5 years</small>
+            <label class="form-label">Experience (yrs)</label>
+            <input type="number" name="experience_years" class="form-control" step="0.5" min="0" placeholder="e.g. 5">
+            <small class="text-secondary" style="font-size:0.7rem">In years (e.g. 3.5)</small>
           </div>
 
           <!-- ─── SALARY ─── -->
@@ -194,11 +193,11 @@
         const data = await res.json();
 
         if (res.ok) {
-          window.location.href = `/resources/${data.id}`;
+          window.location.href = `/resources/${data.id || data.resource_id}`;
         } else {
           msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
           msgBox.classList.add('alert-danger');
-          msgBox.textContent = data.error || 'Failed to create resource.';
+          msgBox.textContent = data.error || data.message || 'Failed to create resource.';
           submitBtn.disabled = false;
           submitBtn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Add Resource';
         }

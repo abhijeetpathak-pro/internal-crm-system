@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <%- include('../partials/head',{title:resource.resource_name+' — CWA CRM'}) %>
+  <%- include('../partials/head',{title:(resource.resource_name || 'Resource') +' — CWA CRM'}) %>
   <style>
-    /* Same pipeline-stage button palette as requirements/detail.ejs */
     .stage-btn{font-size:.72rem;padding:.15rem .5rem;border-radius:20px;font-weight:600}
     .stage-btn-arrow{background:#fff;color:#16a34a;border:1px solid #86efac}
     .stage-btn-active-arrow{background:#16a34a;color:#fff;border:1px solid #16a34a}
@@ -77,14 +76,19 @@
       <div class="row g-2 small">
         <div class="col-md-4"><span class="text-secondary">Title:</span> <strong><%= resource.title||'—' %></strong></div>
         
-        <!-- ✅ FIX 1: experience -> experience_years -->
-        <div class="col-md-4"><span class="text-secondary">Experience:</span> <strong><%= resource.experience_years ? resource.experience_years + ' yrs' : '—' %></strong></div>
+        <!-- ✅ FIXED: Experience Section -->
+        <div class="col-md-4">
+          <span class="text-secondary">Experience:</span> 
+          <strong>
+            <% 
+              let exp = (typeof resource.experience_years !== 'undefined' && resource.experience_years !== null) ? resource.experience_years : resource.experience;
+            %>
+            <%= (exp !== null && exp !== undefined && exp !== '') ? exp + ' yrs' : '—' %>
+          </strong>
+        </div>
         
         <div class="col-md-4"><span class="text-secondary">Skills:</span> <%= resource.skills||'—' %></div>
-        
-        <!-- ✅ FIX 2: salary_lpa -> salary_lpm -->
         <div class="col-md-4"><span class="text-secondary">Salary:</span> <%= resource.salary_lpm ? resource.salary_lpm + ' LPM' : (resource.salary_lpa ? resource.salary_lpa + ' LPA' : '—') %></div>
-        
         <div class="col-md-4"><span class="text-secondary">Current Location:</span> <%= resource.current_location||'—' %></div>
         <div class="col-md-4"><span class="text-secondary">Preferred Location:</span> <%= resource.preferred_location||'—' %></div>
         <% if(resource.type==='Vendor'){ %>
@@ -98,7 +102,7 @@
         <% } %>
       </div>
       
-      <!-- ─── JD SECTION WITH SEE MORE ─── -->
+      <!-- JD Section -->
       <% if(resource.jd){ %>
       <hr>
       <div class="small text-secondary mb-1">Job Description</div>
@@ -119,7 +123,7 @@
           <div class="col-md-6">
             <select id="actClient" class="form-select form-select-sm">
               <option value="">— Sent to client (optional) —</option>
-              <% clients.forEach(function(c){ %><option value="<%= c.id %>"><%= c.company_name %></option><% }) %>
+              <% (clients || []).forEach(function(c){ %><option value="<%= c.id %>"><%= c.company_name %></option><% }) %>
             </select>
           </div>
         </div>
@@ -180,6 +184,7 @@
       <% } %>
     </div>
   </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {

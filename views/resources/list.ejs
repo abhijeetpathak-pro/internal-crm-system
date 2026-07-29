@@ -30,7 +30,7 @@
     }
     .dropdown-menu {
       min-width: 160px;
-      z-index: 1060 !important; /* Higher z-index to ensure it appears above everything */
+      z-index: 1060 !important;
     }
     .dropdown-item {
       font-size: 0.85rem;
@@ -44,7 +44,6 @@
       text-align: center;
     }
 
-    /* Fix table container to not clip dropdown */
     .table-wrap {
       overflow: visible !important;
       position: relative;
@@ -53,13 +52,11 @@
       margin-bottom: 0;
     }
     
-    /* Ensure dropdowns aren't clipped by table cells */
     .resource-table td {
       position: relative;
       overflow: visible !important;
     }
     
-    /* Dropdown container inside table cell */
     .resource-table td .dropdown {
       position: static;
     }
@@ -81,7 +78,7 @@
     .resource-table .col-uid { max-width: 120px; }
     .resource-table .col-name { max-width: 150px; }
     .resource-table .col-vendor { max-width: 120px; }
-    .resource-table .col-budget { max-width: 80px; }
+    .resource-table .col-budget { max-width: 90px; }
     .resource-table .col-exp { max-width: 90px; }
     .resource-table .col-empname { max-width: 120px; }
     .resource-table .col-profile { max-width: 70px; }
@@ -96,7 +93,6 @@
       vertical-align: middle;
     }
 
-    /* Fix for action column */
     .resource-table .action-col {
       width: 60px;
       overflow: visible !important;
@@ -153,14 +149,28 @@
             </tr>
           </thead>
           <tbody id="resourceBody">
-            <% resources.forEach(function(r){ %>
+            <% (resources || []).forEach(function(r){ %>
             <tr id="row-<%= r.id %>" data-type="<%= r.type %>" data-status="<%= r.status || 'Available' %>"
                 data-search="<%= [r.unique_uid, r.resource_name, r.vendor_name, r.skills, r.submitted_by_name].filter(Boolean).join(' ').toLowerCase() %>">
               <td class="ps-3"><code class="small"><%= r.unique_uid %></code></td>
               <td><a href="/resources/<%= r.id %>" class="fw-semibold text-decoration-none" style="color:#1A1A1A"><span class="ellipsis"><%= r.resource_name %></span></a></td>
               <td><span class="ellipsis"><%= r.vendor_name || '—' %></span></td>
-              <td><span class="ellipsis"><%= r.salary_lpm ? r.salary_lpm + ' lpm' : '—' %></span></td>
-              <td class="small text-secondary"><span class="ellipsis"><%= r.experience_years ? r.experience_years+' yrs' : '—' %></span></td>
+              
+              <!-- ✅ FIX: Budget Format -->
+              <td>
+                <span class="ellipsis">
+                  <%= r.salary_lpm ? r.salary_lpm + ' LPM' : (r.salary_lpa ? r.salary_lpa + ' LPA' : '—') %>
+                </span>
+              </td>
+              
+              <!-- ✅ FIX: Safe Experience Display -->
+              <td class="small text-secondary">
+                <span class="ellipsis">
+                  <% let expVal = (typeof r.experience_years !== 'undefined' && r.experience_years !== null) ? r.experience_years : r.experience; %>
+                  <%= (expVal !== null && expVal !== undefined && expVal !== '') ? expVal + ' yrs' : '—' %>
+                </span>
+              </td>
+
               <% if(user.role==='admin' || user.role==='super_admin'){ %>
               <td class="small text-secondary"><span class="ellipsis"><%= r.submitted_by_name || '—' %></span></td>
               <% } %>
@@ -173,8 +183,6 @@
               </td>
               <td class="small text-secondary"><span class="ellipsis"><%= r.current_location||'—' %></span></td>
               <td class="text-center action-col">
-                <!-- ── 3-DOT DROPDOWN ──
-                     Fixed: Proper Bootstrap dropdown with data-bs-auto-close="outside" -->
                 <div class="dropdown d-inline-block">
                   <button class="action-btn dropdown-toggle-no-caret" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Actions">
                     <i class="fa-solid fa-ellipsis-vertical"></i>
@@ -189,7 +197,7 @@
               </td>
             </tr>
             <% }) %>
-            <% if(!resources.length){ %><tr><td colspan="9" class="text-center py-4 text-secondary">Nothing here yet.</td></tr><% } %>
+            <% if(!resources || !resources.length){ %><tr><td colspan="9" class="text-center py-4 text-secondary">Nothing here yet.</td></tr><% } %>
           </tbody>
         </table>
       </div>
@@ -212,13 +220,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script>
-    // All manual dropdown handlers have been removed - Bootstrap handles everything natively
-    // The key fixes were:
-    // 1. Added data-bs-auto-close="outside" to dropdown buttons
-    // 2. Made table cells and container overflow visible
-    // 3. Added proper CSS for dropdown positioning
-    // 4. Removed any conflicting manual JavaScript handlers
-
     function applyFilter() {
       const type = document.getElementById('filterType').value;
       const status = document.getElementById('filterStatus').value;
@@ -250,19 +251,30 @@
       document.getElementById('editModalBody').innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-danger"></div> Loading...</div>';
       editModal.show();
       try {
-        const res = await fetch('/api/resources/' + id);
+        const [res, vRes] = await Promise.all([
+          fetch('/api/resources/' + id),
+          fetch('/api/vendors')
+        ]);
         const r = await res.json();
+        const vendors = await vRes.json();
         currentRes = r;
 
         const isVendor = r.type === 'Vendor';
+        const expVal = (typeof r.experience_years !== 'undefined' && r.experience_years !== null) ? r.experience_years : (r.experience || '');
+        const salVal = r.salary_lpm || r.salary_lpa || '';
+
+        let vendorOptions = '<option value="">Select vendor...</option>' + vendors.map(v => 
+          `<option value="${v.id}" ${r.vendor_id == v.id ? 'selected' : ''}>${v.vendor_name} (${v.short_code})</option>`
+        ).join('');
+
         document.getElementById('editModalBody').innerHTML = `
           <input type="hidden" id="eId" value="${r.id}">
           <div class="row g-2">
-            <div class="col-md-6"><label class="form-label small">Name *</label><input type="text" id="eName" class="form-control form-control-sm" value="${r.resource_name||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Name *</label><input type="text" id="eName" class="form-control form-control-sm" value="${r.resource_name||''}" required></div>
             <div class="col-md-6"><label class="form-label small">Title</label><input type="text" id="eTitle" class="form-control form-control-sm" value="${r.title||''}"></div>
-            <div class="col-md-4"><label class="form-label small">Experience (yrs)</label><input type="number" id="eExperience" class="form-control form-control-sm" step="0.5" min="0" value="${r.experience_years||''}"></div>
-            <div class="col-md-8"><label class="form-label small">Skills *</label><input type="text" id="eSkills" class="form-control form-control-sm" value="${r.skills||''}"></div>
-            <div class="col-md-4"><label class="form-label small">Salary lpm</label><input type="number" id="eSalary" class="form-control form-control-sm" step="0.1" value="${r.salary_lpm||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Experience (yrs)</label><input type="number" id="eExperience" class="form-control form-control-sm" step="0.5" min="0" value="${expVal}"></div>
+            <div class="col-md-8"><label class="form-label small">Skills *</label><input type="text" id="eSkills" class="form-control form-control-sm" value="${r.skills||''}" required></div>
+            <div class="col-md-4"><label class="form-label small">Salary LPM</label><input type="number" id="eSalary" class="form-control form-control-sm" step="0.1" value="${salVal}"></div>
             <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" id="eCurLoc" class="form-control form-control-sm" value="${r.current_location||''}"></div>
             <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" id="ePrefLoc" class="form-control form-control-sm" value="${r.preferred_location||''}"></div>
             <div class="col-md-4"><label class="form-label small">Type</label>
@@ -285,15 +297,42 @@
               <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" id="eLinkedin" class="form-control form-control-sm" value="${r.linkedin||''}"></div>
             </div>
             <div id="eVendorWrap" class="col-12 row g-2 ${!isVendor?'d-none':''}">
-              <div class="col-md-6"><label class="form-label small">Vendor ID</label><input type="text" id="eVendorId" class="form-control form-control-sm" value="${r.vendor_id||''}" placeholder="Vendor ID number"></div>
-              <div class="col-md-6"><label class="form-label small">POC ID</label><input type="text" id="ePocId" class="form-control form-control-sm" value="${r.poc_id||''}" placeholder="POC ID number"></div>
+              <div class="col-md-6">
+                <label class="form-label small">Vendor</label>
+                <select id="eVendorSel" class="form-select form-select-sm" onchange="loadEditPocs()">${vendorOptions}</select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Vendor POC</label>
+                <select id="ePocSel" class="form-select form-select-sm"><option value="">All POCs</option></select>
+              </div>
             </div>
           </div>
           <div id="editMsg" class="alert mt-2 d-none py-1 small"></div>
         `;
+
+        if (isVendor && r.vendor_id) {
+          loadEditPocs(r.poc_id);
+        }
       } catch (err) {
+        console.error('Error loading resource edit data:', err);
         document.getElementById('editModalBody').innerHTML = '<div class="alert alert-danger">Failed to load resource data.</div>';
       }
+    }
+
+    async function loadEditPocs(selectedPocId) {
+      const vendorId = document.getElementById('eVendorSel').value;
+      const pSelect = document.getElementById('ePocSel');
+      if (!vendorId) {
+        pSelect.innerHTML = '<option value="">All POCs</option>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/pocs/vendor/' + vendorId);
+        const pocs = await res.json();
+        pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(p => 
+          `<option value="${p.id}" ${selectedPocId == p.id ? 'selected' : ''}>${p.poc_name}</option>`
+        ).join('');
+      } catch(e) { console.error('Error loading POCs:', e); }
     }
 
     function toggleEditFields() {
@@ -322,32 +361,40 @@
         payload.email = document.getElementById('eEmail').value;
         payload.linkedin = document.getElementById('eLinkedin').value;
       } else {
-        payload.vendor_id = document.getElementById('eVendorId').value;
-        payload.poc_id = document.getElementById('ePocId').value;
+        payload.vendor_id = document.getElementById('eVendorSel').value || null;
+        payload.poc_id = document.getElementById('ePocSel').value || null;
       }
-      const res = await fetch('/api/resources/' + id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const msg = document.getElementById('editMsg');
-      if (res.ok) {
-        location.reload();
-      } else {
-        msg.className = 'alert alert-danger mt-2 py-1 small';
-        msg.textContent = 'Failed to update resource.';
+      
+      try {
+        const res = await fetch('/api/resources/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const msg = document.getElementById('editMsg');
+        if (res.ok) {
+          location.reload();
+        } else {
+          const data = await res.json();
+          msg.className = 'alert alert-danger mt-2 py-1 small';
+          msg.textContent = data.message || 'Failed to update resource.';
+        }
+      } catch(err) {
+        alert('Server error: ' + err.message);
       }
     }
 
     async function delRes(id) {
       if (!confirm('Delete this resource? This cannot be undone.')) return;
-      const res = await fetch('/api/resources/' + id, { method: 'DELETE' });
-      if (res.ok) {
-        document.getElementById('row-' + id)?.remove();
-        applyFilter();
-      } else {
-        alert('Failed to delete.');
-      }
+      try {
+        const res = await fetch('/api/resources/' + id, { method: 'DELETE' });
+        if (res.ok) {
+          document.getElementById('row-' + id)?.remove();
+          applyFilter();
+        } else {
+          alert('Failed to delete.');
+        }
+      } catch(err) { alert('Error deleting: ' + err.message); }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
