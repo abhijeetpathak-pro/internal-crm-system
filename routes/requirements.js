@@ -4,19 +4,11 @@
 
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
 const pool = require('../db');
+const { createDocumentUpload, hasExpectedSignature, removeUploadedFile } = require('../middleware/uploads');
+const upload = createDocumentUpload();
 
-// For inline new-resource form (Fix 11 Case B)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads', 'cvs')),
-  filename: (req, file, cb) => {
-    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    cb(null, `${Date.now()}-${safe}`);
-  }
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+// Inline resource CV uploads use the shared secure document uploader.
 
 // Valid stored requirement statuses. 'Closed' is intentionally absent —
 // see POST /:id/status for why.
@@ -218,10 +210,29 @@ router.post('/:id/status', async (req, res) => {
 router.post('/:id/map-resource', (req, res, next) => {
   upload.single('cv')(req, res, err => { if (err) return res.status(400).json({ error: err.message }); next(); });
 }, async (req, res) => {
+  if (req.file) {
+    try {
+      if (!(await hasExpectedSignature(req.file))) {
+        await removeUploadedFile(req.file);
+        return res.status(400).json({ error: 'Uploaded document content does not match its file type.' });
+      }
+    } catch (err) {
+      await removeUploadedFile(req.file);
+      return res.status(400).json({ error: 'Uploaded document could not be validated.' });
+    }
+  }
+
   const reqId = req.params.id;
 
-  const [reqRows] = await pool.query('SELECT id FROM crm_requirements WHERE id=?', [reqId]);
-  if (!reqRows.length) return res.status(404).json({ error: 'Requirement not found.' });
+  const [reqRows] = await pool.query('SELECT id, created_by FROM crm_requirements WHERE id=?', [reqId]);
+  if (!reqRows.length) {
+    await removeUploadedFile(req.file);
+    return res.status(404).json({ error: 'Requirement not found.' });
+  }
+  if (req.session.user.role === 'emp' && reqRows[0].created_by !== req.session.user.id) {
+    await removeUploadedFile(req.file);
+    return res.status(403).json({ error: 'Permission denied.' });
+  }
 
   const conn = await pool.getConnection();
   try {
@@ -335,7 +346,8 @@ router.post('/:id/map-resource', (req, res, next) => {
   } catch (err) {
     await conn.rollback();
     console.error('Map resource error:', err);
-    res.status(500).json({ error: 'Failed to map resource. ' + err.message });
+    await removeUploadedFile(req.file);
+    res.status(500).json({ error: 'Failed to map resource.' });
   } finally {
     conn.release();
   }

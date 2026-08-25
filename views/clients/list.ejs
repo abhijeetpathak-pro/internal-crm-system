@@ -9,7 +9,9 @@
     <%- include('../partials/topbar',{user}) %>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="fw-semibold mb-0"><i class="fa-solid fa-briefcase me-2 text-danger"></i>Clients</h4>
+      <% if(user.role==='admin'||user.role==='super_admin'){ %>
       <a href="/clients/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Client</a>
+      <% } %>
     </div>
     <div class="card stat-card p-0">
       <table class="table align-middle mb-0">
@@ -36,9 +38,11 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                   <li><a class="dropdown-item" href="/clients/<%= c.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View & POCs</a></li>
+                  <% if(user.role==='admin'||user.role==='super_admin'){ %>
                   <li><a class="dropdown-item" href="#" onclick="editClient('<%= c.id %>', '<%= c.company_name %>', '<%= c.website %>', '<%= c.phone %>', '<%= c.email %>', '<%= c.address %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item text-danger" href="#" onclick="delClient('<%= c.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                  <% } %>
                 </ul>
               </div>
             </td>

@@ -39,13 +39,20 @@
   if(!inp) return;
   let timer;
   const C={'Resource':['#fdf2f2','#C0392B'],'In-House':['#f0fdf4','#166534'],'Requirement':['#eff6ff','#1e40af'],'Client':['#faf5ff','#6b21a8'],'Vendor':['#fff7ed','#9a3412'],'Lead':['#fefce8','#854d0e']};
-  function badge(t){const c=C[t]||['#f3f4f6','#374151'];return `<span style="background:${c[0]};color:${c[1]};font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:20px;margin-right:8px;border:1px solid ${c[0]}">${t}</span>`;}
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  function safeInternalUrl(value){
+    try {
+      const url = new URL(String(value || ''), window.location.origin);
+      return url.origin === window.location.origin && /^\/(resources|requirements|clients|vendors|leads)\/\d+$/.test(url.pathname) ? url.pathname : '#';
+    } catch { return '#'; }
+  }
+  function badge(t){const type=C[t]?t:'Resource';const c=C[type];return `<span style="background:${c[0]};color:${c[1]};font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:20px;margin-right:8px;border:1px solid ${c[0]}">${escapeHtml(type)}</span>`;}
   async function search(q){
     if(!q||q.length<2){box.classList.add('d-none');return;}
     try{
       const res=await fetch('/api/search?q='+encodeURIComponent(q));
       const data=await res.json();
-      box.innerHTML=data.length?data.map(r=>`<a href="${r.url}" class="crm-si" style="display:flex;align-items:flex-start;padding:.6rem 1rem;text-decoration:none;border-bottom:1px solid #f3f4f6"><div>${badge(r.type)}<span style="font-weight:500;font-size:.83rem;color:#1A1A1A">${r.label}</span>${r.sublabel?`<div style="font-size:.74rem;color:#6B7280">${r.sublabel}</div>`:''}</div></a>`).join(''):'<div style="padding:.9rem;color:#6B7280;font-size:.82rem">No results found.</div>';
+      box.innerHTML=Array.isArray(data)&&data.length?data.map(r=>`<a href="${escapeHtml(safeInternalUrl(r.url))}" class="crm-si" style="display:flex;align-items:flex-start;padding:.6rem 1rem;text-decoration:none;border-bottom:1px solid #f3f4f6"><div>${badge(r.type)}<span style="font-weight:500;font-size:.83rem;color:#1A1A1A">${escapeHtml(r.label)}</span>${r.sublabel?`<div style="font-size:.74rem;color:#6B7280">${escapeHtml(r.sublabel)}</div>`:''}</div></a>`).join(''):'<div style="padding:.9rem;color:#6B7280;font-size:.82rem">No results found.</div>';
       box.classList.remove('d-none');
     }catch(e){box.classList.add('d-none');}
   }

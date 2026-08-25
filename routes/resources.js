@@ -7,48 +7,13 @@
 
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const path = require('path');
 const pool = require('../db');
+const { createDocumentUpload, hasExpectedSignature, removeUploadedFile } = require('../middleware/uploads');
+const upload = createDocumentUpload();
 
-// ──────────────────────────────────────────────────────────────
-// MULTER CONFIGURATION - File Upload Setup
-// ──────────────────────────────────────────────────────────────
-
-/**
- * Configure storage location and filename for uploaded CVs
- * Files are saved to: uploads/cvs/
- * Filename format: timestamp-originalname
- */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Save to uploads/cvs folder
-    cb(null, path.join(__dirname, '..', 'uploads', 'cvs'));
-  },
-  filename: (req, file, cb) => {
-    // Replace special characters with underscore for safe filename
-    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    // Add timestamp to avoid filename conflicts
-    cb(null, `${Date.now()}-${safe}`);
-  }
-});
-
-/**
- * Multer upload configuration
- * - Max file size: 5MB
- * - Allowed file types: PDF, DOC, DOCX
- */
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-  fileFilter: (req, file, cb) => {
-    const allowedExtensions = ['.pdf', '.doc', '.docx'];
-    const isValid = allowedExtensions.includes(
-      path.extname(file.originalname).toLowerCase()
-    );
-    cb(isValid ? null : new Error('Only PDF, DOC, DOCX files are allowed.'), isValid);
-  }
-});
+// Secure document uploads use random filenames, strict MIME/extension checks,
+// a 5 MB limit, and a lightweight file-signature check after upload.
 
 // ──────────────────────────────────────────────────────────────
 // HELPER FUNCTIONS
@@ -229,6 +194,18 @@ router.post('/', (req, res, next) => {
     next();
   });
 }, async (req, res) => {
+  if (req.file) {
+    try {
+      if (!(await hasExpectedSignature(req.file))) {
+        await removeUploadedFile(req.file);
+        return res.status(400).json({ error: 'Uploaded document content does not match its file type.' });
+      }
+    } catch (err) {
+      await removeUploadedFile(req.file);
+      return res.status(400).json({ error: 'Uploaded document could not be validated.' });
+    }
+  }
+
   /**
    * Extract form data from request body
    * Fields: resource_name, title, skills, type, vendor_id, etc.

@@ -72,7 +72,7 @@ router.get('/requirements', async (req, res) => {
   } catch (err) {
     console.error('Fetch requirements error:', err);
     res.status(500).render('error', {
-      message: 'Database error: ' + err.message,
+      message: 'Unable to load requirement data right now.',
       user: req.session.user
     });
   }
@@ -97,7 +97,7 @@ router.get('/requirements/add', async (req, res) => {
   } catch (err) {
     console.error('Add requirement page error:', err);
     res.status(500).render('error', {
-      message: 'Database error: ' + err.message,
+      message: 'Unable to load requirement data right now.',
       user: req.session.user
     });
   }
@@ -151,7 +151,7 @@ router.get('/requirements/edit/:id', async (req, res) => {
   } catch (err) {
     console.error('Edit requirement error:', err);
     res.status(500).render('error', {
-      message: 'Database error: ' + err.message,
+      message: 'Unable to load requirement data right now.',
       user: req.session.user
     });
   }
@@ -166,6 +166,10 @@ router.get('/api/requirements/:id', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM crm_requirements WHERE id = ?', [req.params.id]);
     if (!rows.length) {
       return res.status(404).json({ success: false, message: 'Requirement not found' });
+    }
+    const isAdmin = req.session.user.role === 'admin' || req.session.user.role === 'super_admin';
+    if (!isAdmin && rows[0].created_by !== req.session.user.id) {
+      return res.status(403).json({ success: false, message: 'Permission denied.' });
     }
 
     const [clients] = await pool.query('SELECT id, company_name FROM crm_clients ORDER BY company_name');
@@ -183,7 +187,7 @@ router.get('/api/requirements/:id', async (req, res) => {
       pocs
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Failed to load requirement details.' });
   }
 });
 
@@ -209,8 +213,18 @@ router.put('/api/requirements/:id', async (req, res) => {
     const reqId = req.params.id;
     const { title, status, budget, client_id, poc_id, jd } = req.body;
 
+    const isAdmin = req.session.user.role === 'admin' || req.session.user.role === 'super_admin';
+    const [existing] = await pool.query('SELECT created_by FROM crm_requirements WHERE id = ?', [reqId]);
+    if (!existing.length) return res.status(404).json({ success: false, message: 'Requirement not found' });
+    if (!isAdmin && existing[0].created_by !== req.session.user.id) {
+      return res.status(403).json({ success: false, message: 'Permission denied.' });
+    }
+    if (typeof title !== 'string' || !title.trim() || title.trim().length > 500 || !['Open', 'Hold'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Valid title and status are required.' });
+    }
+
     // Foreign Keys protection: empty strings to NULL
-    const safeClientId = client_id && client_id !== '' ? parseInt(client_id) : null;
+    const safeClientId = client_id && client_id !== '' ? parseInt(client_id, 10) : null;
     const safePocId = poc_id && poc_id !== '' ? parseInt(poc_id) : null;
     const safeJd = jd || '';
     const safeBudget = budget || '';
@@ -220,7 +234,7 @@ router.put('/api/requirements/:id', async (req, res) => {
       `UPDATE crm_requirements 
        SET title = ?, status = ?, budget = ?, client_id = ?, poc_id = ?, jd = ? 
        WHERE id = ?`,
-      [title, status, safeBudget, safeClientId, safePocId, safeJd, reqId]
+      [title.trim(), status, safeBudget, safeClientId, safePocId, safeJd, reqId]
     );
 
     res.json({ success: true, message: 'Requirement updated successfully' });

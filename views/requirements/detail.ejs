@@ -287,8 +287,9 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   <script>
-    const REQ_ID = '<%= requirement.id %>';
-    const REQ_TITLE = '<%= requirement.title.replace(/`/g,"\\`") %>';
+    const REQ_ID = <%- JSON.stringify(requirement.id) %>;
+    const REQ_TITLE = <%- JSON.stringify(requirement.title).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026') %>;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
     // ── JD TOGGLE ──
     function toggleJD() {
@@ -391,7 +392,7 @@
           var vRes = await fetch('/api/vendors');
           var vendors = await vRes.json();
           vSelect.innerHTML = '<option value="">All vendors</option>' + vendors.map(function(v) {
-            return '<option value="' + v.id + '">' + v.vendor_name + '</option>';
+            return '<option value="' + Number.parseInt(v.id, 10) + '">' + escapeHtml(v.vendor_name) + '</option>';
           }).join('');
         }
       } else {
@@ -406,7 +407,7 @@
       var rSelect = document.getElementById('dbResource');
       if (resources.length) {
         rSelect.innerHTML = '<option value="">Select resource...</option>' + resources.map(function(r) {
-          return '<option value="' + r.id + '">' + r.resource_name + ' — ' + r.unique_uid + '</option>';
+          return '<option value="' + Number.parseInt(r.id, 10) + '">' + escapeHtml(r.resource_name) + ' — ' + escapeHtml(r.unique_uid) + '</option>';
         }).join('');
       } else {
         rSelect.innerHTML = '<option value="">No resources found</option>';
@@ -421,7 +422,7 @@
         var pocs = await res.json();
         var pSelect = document.getElementById('dbPoc');
         pSelect.innerHTML = '<option value="">All POCs</option>' + pocs.map(function(p) {
-          return '<option value="' + p.id + '">' + p.poc_name + '</option>';
+          return '<option value="' + Number.parseInt(p.id, 10) + '">' + escapeHtml(p.poc_name) + '</option>';
         }).join('');
         pWrap.classList.remove('d-none');
       } else {
@@ -472,7 +473,7 @@
       var res = await fetch('/api/vendors');
       var vendors = await res.json();
       vSelect.innerHTML = '<option value="">Select vendor...</option>' + vendors.map(function(v) {
-        return '<option value="' + v.id + '">' + v.vendor_name + ' (' + v.short_code + ')</option>';
+        return '<option value="' + Number.parseInt(v.id, 10) + '">' + escapeHtml(v.vendor_name) + ' (' + escapeHtml(v.short_code) + ')</option>';
       }).join('');
     }
 
@@ -483,7 +484,7 @@
       var pocs = await res.json();
       var pSelect = document.getElementById('nrPocSel');
       pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(function(p) {
-        return '<option value="' + p.id + '">' + p.poc_name + '</option>';
+        return '<option value="' + Number.parseInt(p.id, 10) + '">' + escapeHtml(p.poc_name) + '</option>';
       }).join('');
     }
 

@@ -10,26 +10,10 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const multer = require('multer');
-const path = require('path');
 const pool = require('../db');
 const { requireLogin } = require('../middleware/auth');
-
-// Avatars go in their own uploads subfolder, same pattern as CV uploads.
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads', 'avatars')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).replace(/[^a-zA-Z0-9.]/g, '');
-    cb(null, `user-${req.session.user.id}-${Date.now()}${ext}`);
-  }
-});
-function imageFilter(req, file, cb) {
-  if (!/^image\/(png|jpe?g|webp|gif)$/.test(file.mimetype)) {
-    return cb(new Error('Only image files (png, jpg, webp, gif) are allowed.'));
-  }
-  cb(null, true);
-}
-const upload = multer({ storage, fileFilter: imageFilter, limits: { fileSize: 2 * 1024 * 1024 } });
+const { createImageUpload, hasExpectedImageSignature, removeUploadedFile } = require('../middleware/uploads');
+const upload = createImageUpload();
 
 async function loadProfile(userId) {
   const [rows] = await pool.query('SELECT id,name,email,role,status,avatar_path,created_at FROM crm_users WHERE id=?', [userId]);
@@ -76,6 +60,18 @@ router.post('/profile/avatar', requireLogin, (req, res, next) => {
     const profile = await loadProfile(req.session.user.id);
     return res.render('profile', { user: req.session.user, profile, active: 'profile', error: 'Please choose an image.', success: null });
   }
+  try {
+    if (!(await hasExpectedImageSignature(req.file))) {
+      await removeUploadedFile(req.file);
+      const profile = await loadProfile(req.session.user.id);
+      return res.render('profile', { user: req.session.user, profile, active: 'profile', error: 'Uploaded image content does not match its file type.', success: null });
+    }
+  } catch (err) {
+    await removeUploadedFile(req.file);
+    const profile = await loadProfile(req.session.user.id);
+    return res.render('profile', { user: req.session.user, profile, active: 'profile', error: 'Uploaded image could not be validated.', success: null });
+  }
+
   const avatarPath = `/uploads/avatars/${req.file.filename}`;
   await pool.query('UPDATE crm_users SET avatar_path=? WHERE id=?', [avatarPath, req.session.user.id]);
   req.session.user.avatar_path = avatarPath;
@@ -90,9 +86,11 @@ router.post('/profile/password', requireLogin, async (req, res) => {
     const profile = await loadProfile(req.session.user.id);
     res.render('profile', { user: req.session.user, profile, active: 'profile', error, success });
   };
+  if (!current_password || !new_password || !confirm_password) return render('All password fields are required.', null);
   if (new_password !== confirm_password) return render('New passwords do not match.', null);
   if (new_password.length < 8) return render('New password must be at least 8 characters.', null);
   const [rows] = await pool.query('SELECT password_hash FROM crm_users WHERE id=?', [req.session.user.id]);
+  if (!rows.length) return render('User account was not found.', null);
   const match = await bcrypt.compare(current_password, rows[0].password_hash);
   if (!match) return render('Current password is incorrect.', null);
   const hash = await bcrypt.hash(new_password, 10);

@@ -5,7 +5,8 @@ const router = express.Router();
 // Import database connection pool
 const pool = require('../db');
 // Import authentication middleware to protect routes
-const { requireLogin } = require('../middleware/auth');
+const { requireLogin, requireRole } = require('../middleware/auth');
+const requireAdmin = requireRole('admin', 'super_admin');
 
 // ── APPLY MIDDLEWARE ──
 // Sabhi routes ke liye login mandatory hai
@@ -31,7 +32,7 @@ router.get('/vendors', async (req, res) => {
     // Agar database error aata hai toh log karna aur error page dikhana
     console.error('Vendors page error:', err);
     res.status(500).render('error', { 
-      message: 'Database error: ' + err.message, 
+      message: 'Unable to load vendor data right now.',
       user: req.session.user 
     });
   }
@@ -40,7 +41,7 @@ router.get('/vendors', async (req, res) => {
 // ─── GET add vendor form ──────────────────────────────────────────────────
 // Naya vendor add karne ka form page
 // Sirf form render karta hai, actual insertion nahi karta
-router.get('/vendors/add', (req, res) => {
+router.get('/vendors/add', requireAdmin, (req, res) => {
   // Add vendor form render karna
   res.render('vendors/add', { 
     user: req.session.user, 
@@ -81,7 +82,7 @@ router.get('/vendors/:id', async (req, res) => {
     // Agar database error aata hai toh log karna aur error page dikhana
     console.error('Vendor detail error:', err);
     res.status(500).render('error', { 
-      message: 'Database error: ' + err.message, 
+      message: 'Unable to load vendor data right now.',
       user: req.session.user 
     });
   }

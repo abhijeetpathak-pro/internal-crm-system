@@ -33,6 +33,7 @@
 <script>
 (async()=>{
   const RED='#C0392B',GREEN='#22c55e',YELLOW='#f59e0b',TEAL='#14b8a6',PURPLE='#a855f7';
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   let stats;
   try {
     const statsRes = await fetch('/api/dashboard/stats');
@@ -60,21 +61,21 @@
   document.getElementById('statCards').innerHTML=cardDefs.map(c=>`
     <div class="col-xl-3 col-md-4 col-6"><div class="card stat-card p-3"><div class="d-flex align-items-center gap-3">
       <div class="stat-icon" style="background:${c.bg};color:${c.color}"><i class="fa-solid ${c.icon}"></i></div>
-      <div><div class="text-secondary" style="font-size:.78rem">${c.label}</div><div class="fw-bold fs-4">${c.value}</div></div>
+      <div><div class="text-secondary" style="font-size:.78rem">${escapeHtml(c.label)}</div><div class="fw-bold fs-4">${escapeHtml(c.value)}</div></div>
     </div></div></div>`).join('');
 
   Chart.defaults.font.family='system-ui,sans-serif';Chart.defaults.color='#6b7280';
   new Chart(document.getElementById('reqChart'),{type:'line',data:{labels:charts.reqTrend.labels,datasets:[{label:'Requirements',data:charts.reqTrend.data,borderColor:RED,backgroundColor:'rgba(192,57,43,.08)',tension:.4,fill:true,pointRadius:3}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}});
   const bd=charts.workBreakdown;
   new Chart(document.getElementById('bdChart'),{type:'doughnut',data:{labels:['Requirements','Resources','Leads'],datasets:[{data:[bd.requirements,bd.resources,bd.leads],backgroundColor:[RED,GREEN,YELLOW],borderWidth:2,borderColor:'#fff'}]},options:{cutout:'65%',plugins:{legend:{display:false}}}});
-  document.getElementById('bdLeg').innerHTML=[['Requirements',bd.requirements,RED],['Resources',bd.resources,GREEN],['Leads',bd.leads,YELLOW]].map(([l,v,c])=>`<div class="d-flex align-items-center gap-2"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>${l}<strong class="ms-auto">${v}</strong></div>`).join('');
+  document.getElementById('bdLeg').innerHTML=[['Requirements',bd.requirements,RED],['Resources',bd.resources,GREEN],['Leads',bd.leads,YELLOW]].map(([l,v,c])=>`<div class="d-flex align-items-center gap-2"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>${escapeHtml(l)}<strong class="ms-auto">${escapeHtml(v)}</strong></div>`).join('');
   new Chart(document.getElementById('leadsChart'),{type:'bar',data:{labels:charts.leadsTrend.labels,datasets:[{label:'Leads',data:charts.leadsTrend.data,backgroundColor:'rgba(245,158,11,.75)',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}});
   const sp=charts.resourceSplit;
   new Chart(document.getElementById('splitChart'),{type:'pie',data:{labels:['In-House','Vendor'],datasets:[{data:[sp.inHouse,sp.vendor],backgroundColor:[TEAL,PURPLE],borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{display:false}}}});
-  document.getElementById('splitLeg').innerHTML=[['In-House',sp.inHouse,TEAL],['Vendor',sp.vendor,PURPLE]].map(([l,v,c])=>`<div class="d-flex align-items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block"></span>${l}: <strong>${v}</strong></div>`).join('');
+  document.getElementById('splitLeg').innerHTML=[['In-House',sp.inHouse,TEAL],['Vendor',sp.vendor,PURPLE]].map(([l,v,c])=>`<div class="d-flex align-items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block"></span>${escapeHtml(l)}: <strong>${escapeHtml(v)}</strong></div>`).join('');
 
   try{const rr=await(await fetch('/api/requirements/recent')).json();
-    document.getElementById('recentReqs').innerHTML=rr.length?rr.map(r=>`<tr><td><a href="/requirements/${r.id}" class="text-decoration-none fw-semibold" style="color:#1A1A1A">${r.title}</a></td><td class="text-secondary small">${r.company_name||'—'}</td><td><span class="badge" style="background:${r.status==='Hold'?'#f3f4f6':'#dcfce7'};color:${r.status==='Hold'?'#6b7280':'#15803d'}">${r.status}</span></td><td class="text-secondary small">${r.budget||'—'}</td><td class="text-secondary small">${new Date(r.created_at).toLocaleDateString('en-IN')}</td></tr>`).join(''):'<tr><td colspan="5" class="text-center text-secondary py-3">No requirements yet.</td></tr>';}catch(e){}
+    document.getElementById('recentReqs').innerHTML=rr.length?rr.map(r=>{const id=Number.parseInt(r.id,10);const href=Number.isInteger(id)?`/requirements/${id}`:'#';const status=r.status==='Hold'?'Hold':'Open';return `<tr><td><a href="${href}" class="text-decoration-none fw-semibold" style="color:#1A1A1A">${escapeHtml(r.title)}</a></td><td class="text-secondary small">${escapeHtml(r.company_name||'—')}</td><td><span class="badge" style="background:${status==='Hold'?'#f3f4f6':'#dcfce7'};color:${status==='Hold'?'#6b7280':'#15803d'}">${escapeHtml(status)}</span></td><td class="text-secondary small">${escapeHtml(r.budget||'—')}</td><td class="text-secondary small">${escapeHtml(new Date(r.created_at).toLocaleDateString('en-IN'))}</td></tr>`}).join(''):'<tr><td colspan="5" class="text-center text-secondary py-3">No requirements yet.</td></tr>';}catch(e){}
 })();
 </script>
 </body></html>

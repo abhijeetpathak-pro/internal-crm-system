@@ -58,9 +58,11 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                       <li><a class="dropdown-item small" href="/requirements?poc_id=<%= p.id %>"><i class="fa-solid fa-clipboard-list me-2 text-secondary"></i>View Requirements</a></li>
-                      <li><a class="dropdown-item small" href="#" onclick="editPoc('<%= p.id %>', '<%= p.poc_name %>', '<%= p.poc_email %>', '<%= p.poc_phone %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
+                      <% if(user.role==='admin'||user.role==='super_admin'){ %>
+                      <li><a class="dropdown-item small edit-poc-link" href="#" data-poc='<%= JSON.stringify(p) %>'><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
                       <li><hr class="dropdown-divider"></li>
                       <li><a class="dropdown-item small text-danger" href="#" onclick="delPoc('<%= p.id %>', '<%= client.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                      <% } %>
                     </ul>
                   </div>
                 </td>
@@ -74,6 +76,7 @@
 
       <div class="col-lg-5">
         <div class="card stat-card p-3">
+          <% if(user.role==='admin'||user.role==='super_admin'){ %>
           <div class="fw-semibold mb-2">Add POC</div>
           <form id="addPocForm" data-client-id="<%= client.id %>">
             <div class="mb-2"><input type="text" name="poc_name" class="form-control form-control-sm" placeholder="POC Name *" required></div>
@@ -82,6 +85,9 @@
             <button type="submit" class="btn btn-primary btn-sm w-100">Add POC</button>
             <div id="pocMsg" class="alert mt-2 d-none py-1 small"></div>
           </form>
+          <% } else { %>
+          <div class="text-secondary small">Only admins can manage POCs.</div>
+          <% } %>
         </div>
       </div>
     </div>
@@ -119,9 +125,14 @@
     });
 
     const editPocModal = new bootstrap.Modal(document.getElementById('editPocModal'));
-    const clientId = '<%= client.id %>';
+    const clientId = <%- JSON.stringify(client.id) %>;
+    document.querySelectorAll('.edit-poc-link').forEach(link => link.addEventListener('click', event => {
+      event.preventDefault();
+      editPoc(JSON.parse(link.dataset.poc));
+    }));
 
-    document.getElementById('addPocForm').addEventListener('submit', async function(e) {
+    const addPocForm = document.getElementById('addPocForm');
+    if (addPocForm) addPocForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
@@ -142,11 +153,11 @@
     });
 
     // EDIT FUNCTION - receives individual parameters (not JSON)
-    function editPoc(id, name, email, phone) {
-      document.getElementById('ePocId').value = id;
-      document.getElementById('ePocName').value = name || '';
-      document.getElementById('ePocEmail').value = email || '';
-      document.getElementById('ePocPhone').value = phone || '';
+    function editPoc(poc) {
+      document.getElementById('ePocId').value = poc.id;
+      document.getElementById('ePocName').value = poc.poc_name || '';
+      document.getElementById('ePocEmail').value = poc.poc_email || '';
+      document.getElementById('ePocPhone').value = poc.poc_phone || '';
       editPocModal.show();
     }
 

@@ -8,7 +8,6 @@ const ALWAYS_ALLOWED = [
   '/css',
   '/js',
   '/img',
-  '/uploads',
   '/api/health'
 ];
 

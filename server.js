@@ -4,6 +4,7 @@
 const express   = require('express');
 const path      = require('path');
 const session   = require('express-session');
+const helmet    = require('helmet');
 const MySQLStore = require('express-mysql-session')(session);
 const pool      = require('./db');
 
@@ -37,26 +38,39 @@ const searchApi       = require('./routes/search');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+const SESSION_SECRET = process.env.SESSION_SECRET;
+
+if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+  throw new Error('SESSION_SECRET must be set and contain at least 32 characters.');
+}
 
 // ── View engine ───────────────────────────────────────────────────────────────
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// ── Body parsers + static ─────────────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ── Security headers + body parsers + static ───────────────────────────────────
+app.disable('x-powered-by');
+// CSP is disabled temporarily because the current EJS views use inline scripts;
+// migrate those scripts to external files/nonces before enabling a strict CSP.
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb', parameterLimit: 100 }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 const sessionStore = new MySQLStore({}, pool);
 app.use(session({
   key: 'crm_session',
-  secret: process.env.SESSION_SECRET || 'cwa-crm-secret-change-in-production',
+  secret: SESSION_SECRET,
   store: sessionStore,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 8 }   // 8 hours
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 8, // 8 hours
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  }
 }));
 
 // ── Root redirect ─────────────────────────────────────────────────────────────
@@ -69,6 +83,13 @@ app.use('/', authRoutes);
 
 // ── License gate ──────────────────────────────────────────────────────────────
 app.use(checkLicense);
+
+// Uploaded CVs and avatars are private CRM data; serve them only after
+// authentication and the license gate have both passed.
+app.use('/uploads', requireLogin, express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'deny',
+  fallthrough: false
+}));
 
 // ── Page routes ───────────────────────────────────────────────────────────────
 app.use('/', dashboardRoutes);

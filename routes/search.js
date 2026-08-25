@@ -10,11 +10,10 @@ const pool = require('../db');
 // Query parameter 'q' ke through search term leta hai
 router.get('/', async (req, res) => {
   // Search query ko trim karna aur extract karna
-  const q = (req.query.q || '').trim();
+  const q = String(req.query.q || '').trim();
   
-  // Agar query empty hai ya 2 characters se chhoti hai toh empty array return karna
-  // Minimum 2 characters required for search
-  if (!q || q.length < 2) return res.json([]);
+  // Keep autocomplete requests small and predictable.
+  if (!q || q.length < 2 || q.length > 100) return res.json([]);
   
   // SQL LIKE pattern banana for partial matching
   const like = `%${q}%`;
@@ -41,10 +40,17 @@ router.get('/', async (req, res) => {
     // Requirement title ya client company name ke hisaab se search
     // LEFT JOIN with clients to get company name
     // LIMIT 5 - maximum 5 results
-    const [reqs] = await pool.query(
-      "SELECT r.id,r.title,r.status,c.company_name FROM crm_requirements r LEFT JOIN crm_clients c ON c.id=r.client_id WHERE r.title LIKE ? OR c.company_name LIKE ? LIMIT 5", 
-      [like, like]
-    );
+    let requirementsSql = `SELECT r.id,r.title,r.status,c.company_name
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON c.id=r.client_id
+      WHERE (r.title LIKE ? OR c.company_name LIKE ?)`;
+    const requirementParams = [like, like];
+    if (req.session.user.role === 'emp') {
+      requirementsSql += ' AND r.created_by = ?';
+      requirementParams.push(req.session.user.id);
+    }
+    requirementsSql += ' LIMIT 5';
+    const [reqs] = await pool.query(requirementsSql, requirementParams);
     // Har requirement ko formatted result mein convert karna
     reqs.forEach(r => results.push({ 
       type: 'Requirement',        // Entity type

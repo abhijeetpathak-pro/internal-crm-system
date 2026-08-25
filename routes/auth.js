@@ -4,8 +4,25 @@ const express = require('express');
 const router = express.Router();
 // Import bcrypt for password hashing and comparison
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 // Import database connection pool
 const pool = require('../db');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).render('login', {
+    error: 'Too many login attempts. Please try again later.'
+  })
+});
+
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate(err => err ? reject(err) : resolve());
+  });
+}
 
 // GET route to display login page
 router.get('/login', (req, res) => {
@@ -16,9 +33,10 @@ router.get('/login', (req, res) => {
 });
 
 // POST route to handle login form submission
-router.post('/login', async (req, res) => {
-  // Extract email and password from request body
-  const { email, password } = req.body;
+router.post('/login', loginLimiter, async (req, res) => {
+  // Extract and normalize credentials from the request body.
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
   
   // Validate that both email and password are provided
   if (!email || !password) return res.render('login', { error: 'Email and password are required.' });
@@ -42,6 +60,8 @@ router.post('/login', async (req, res) => {
     // If passwords don't match, return error
     if (!match) return res.render('login', { error: 'Invalid email or password.' });
     
+    // Rotate the session identifier after authentication to prevent session fixation.
+    await regenerateSession(req);
     // Store user session data (exclude sensitive info like password_hash)
     req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role, avatar_path: user.avatar_path || null };
     

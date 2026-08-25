@@ -23,7 +23,7 @@ router.get('/leads', async (req, res) => {
   } catch (err) {
     console.error('GET leads error:', err);
     res.status(500).render('error', {
-      message: 'Database error: ' + err.message,
+      message: 'Unable to load lead data right now.',
       user: req.session.user
     });
   }
@@ -57,7 +57,7 @@ router.get('/leads/edit/:id', async (req, res) => {
   } catch (err) {
     console.error('GET edit lead error:', err);
     res.status(500).render('error', {
-      message: 'Database error: ' + err.message,
+      message: 'Unable to load lead data right now.',
       user: req.session.user
     });
   }
@@ -96,7 +96,7 @@ router.get('/leads/:id', async (req, res) => {
   } catch (err) {
     console.error('GET lead detail error:', err);
     res.status(500).render('error', {
-      message: 'Database error: ' + err.message,
+      message: 'Unable to load lead data right now.',
       user: req.session.user
     });
   }

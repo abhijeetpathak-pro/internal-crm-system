@@ -5,7 +5,8 @@ const router = express.Router();
 // Import database connection pool
 const pool = require('../db');
 // Import authentication middleware to protect routes
-const { requireLogin } = require('../middleware/auth');
+const { requireLogin, requireRole } = require('../middleware/auth');
+const requireAdmin = requireRole('admin', 'super_admin');
 
 // ── Sabhi ko access ──
 // Har route ke liye login mandatory hai
@@ -33,7 +34,7 @@ router.get('/clients', async (req, res) => {
     console.error('Clients page error:', err);
     // Error page render karna with message
     res.status(500).render('error', { 
-      message: 'Database error: ' + err.message, 
+      message: 'Unable to load client data right now.',
       user: req.session.user 
     });
   }
@@ -42,7 +43,7 @@ router.get('/clients', async (req, res) => {
 // ─── Add Client ───
 // Naya client add karne ka form page
 // Sirf form render karta hai, actual insertion nahi karta
-router.get('/clients/add', (req, res) => {
+router.get('/clients/add', requireAdmin, (req, res) => {
   // Add client form render karna
   res.render('clients/add', { 
     user: req.session.user, 
@@ -84,7 +85,7 @@ router.get('/clients/:id', async (req, res) => {
     console.error('Client detail error:', err);
     // Error page render karna with message
     res.status(500).render('error', { 
-      message: 'Database error: ' + err.message, 
+      message: 'Unable to load client data right now.',
       user: req.session.user 
     });
   }

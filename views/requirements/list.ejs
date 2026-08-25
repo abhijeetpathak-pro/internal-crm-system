@@ -316,6 +316,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   
   <script>
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     let editModalObj = null;
     let deleteModalObj = null;
     let deleteId = null;
@@ -351,18 +352,18 @@
         // Build Client Dropdown Options
         let clientOptions = '<option value="">Select client...</option>';
         clients.forEach(c => {
-          clientOptions += `<option value="${c.id}" ${r.client_id == c.id ? 'selected' : ''}>${c.company_name}</option>`;
+          clientOptions += `<option value="${Number.parseInt(c.id, 10)}" ${r.client_id == c.id ? 'selected' : ''}>${escapeHtml(c.company_name)}</option>`;
         });
 
         // Build POC Dropdown Options
         let pocOptions = '<option value="">Select POC...</option>';
         pocs.forEach(p => {
-          pocOptions += `<option value="${p.id}" ${r.poc_id == p.id ? 'selected' : ''}>${p.poc_name}</option>`;
+          pocOptions += `<option value="${Number.parseInt(p.id, 10)}" ${r.poc_id == p.id ? 'selected' : ''}>${escapeHtml(p.poc_name)}</option>`;
         });
 
         // Inject Pre-Filled HTML Form Controls inside Modal Body
         document.getElementById('editModalBody').innerHTML = `
-          <input type="hidden" id="eId" value="${r.id}">
+          <input type="hidden" id="eId" value="${Number.parseInt(r.id, 10)}">
           <div class="row g-2 mb-2">
             <div class="col-md-6">
               <label class="form-label small">Client *</label>
@@ -380,12 +381,12 @@
 
           <div class="mb-2">
             <label class="form-label small">Requirement Title *</label>
-            <input type="text" id="eTitle" class="form-control form-control-sm" value="${r.title || ''}">
+            <input type="text" id="eTitle" class="form-control form-control-sm" value="${escapeHtml(r.title || '')}">
           </div>
 
           <div class="mb-2">
             <label class="form-label small">Job Description</label>
-            <textarea id="eJd" class="form-control form-control-sm" rows="4">${r.jd || r.job_description || ''}</textarea>
+            <textarea id="eJd" class="form-control form-control-sm" rows="4">${escapeHtml(r.jd || r.job_description || '')}</textarea>
           </div>
 
           <div class="row g-2">
@@ -398,7 +399,7 @@
             </div>
             <div class="col-md-6">
               <label class="form-label small">Budget</label>
-              <input type="text" id="eBudget" class="form-control form-control-sm" placeholder="e.g. 12-15 LPA" value="${r.budget || ''}">
+              <input type="text" id="eBudget" class="form-control form-control-sm" placeholder="e.g. 12-15 LPA" value="${escapeHtml(r.budget || '')}">
             </div>
           </div>
           <div id="editMsg" class="alert mt-2 d-none py-1 small"></div>
@@ -422,7 +423,7 @@
         const pocs = await res.json();
         let options = '<option value="">Select POC...</option>';
         pocs.forEach(p => {
-          options += `<option value="${p.id}">${p.poc_name}</option>`;
+          options += `<option value="${Number.parseInt(p.id, 10)}">${escapeHtml(p.poc_name)}</option>`;
         });
         pocSelect.innerHTML = options;
       } catch (e) {}

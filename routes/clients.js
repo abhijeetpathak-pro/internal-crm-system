@@ -5,7 +5,8 @@ const router = express.Router();
 // Import database connection pool
 const pool = require('../db');
 // Import authentication middleware to protect routes
-const { requireLogin } = require('../middleware/auth');
+const { requireLogin, requireRole } = require('../middleware/auth');
+const requireAdmin = requireRole('admin', 'super_admin');
 
 // ── APPLY MIDDLEWARE ──
 // Employee, Admin, Superadmin sabko full access
@@ -55,7 +56,7 @@ router.get('/:id', async (req, res) => {
 // ─── POST create client ────────────────────────────────────────────────────
 // Endpoint to create a new client
 // Naya client create karne ke liye endpoint
-router.post('/', async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   // Extract client details from request body
   // Request body se client ki details extract karna
   const { company_name, website, address, email, phone } = req.body;
@@ -84,14 +85,14 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     console.error('POST client error:', err);
-    res.status(500).json({ error: 'Failed to create client. ' + err.message });
+    res.status(500).json({ error: 'Failed to create client.' });
   }
 });
 
 // ─── PUT update client ─────────────────────────────────────────────────────
 // Endpoint to update an existing client
 // Existing client ko update karne ke liye endpoint
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   // Extract updated client details from request body
   // Request body se updated client details extract karna
   const { company_name, website, address, email, phone } = req.body;
@@ -125,14 +126,14 @@ router.put('/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('PUT client error:', err);
-    res.status(500).json({ error: 'Failed to update client. ' + err.message });
+    res.status(500).json({ error: 'Failed to update client.' });
   }
 });
 
 // ─── DELETE client ─────────────────────────────────────────────────────────
 // Endpoint to delete a client (with dependency check)
 // Client ko delete karne ka endpoint (pehle dependency check karega)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     // Check if client has any associated requirements (foreign key constraint)
     // Check karna ki client se koi requirement associated toh nahi hai
@@ -169,7 +170,7 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('DELETE client error:', err);
-    res.status(500).json({ error: 'Failed to delete client. ' + err.message });
+    res.status(500).json({ error: 'Failed to delete client.' });
   }
 });
 
@@ -198,7 +199,7 @@ router.get('/:id/pocs', async (req, res) => {
 // ─── POST create POC ──────────────────────────────────────────────────────
 // Endpoint to add a new POC for a client
 // Client ke liye naya POC add karne ka endpoint
-router.post('/:id/pocs', async (req, res) => {
+router.post('/:id/pocs', requireAdmin, async (req, res) => {
   // Extract POC details from request body
   // Request body se POC ki details extract karna
   const { poc_name, poc_email, poc_phone } = req.body;
@@ -227,14 +228,14 @@ router.post('/:id/pocs', async (req, res) => {
     });
   } catch (err) {
     console.error('POST POC error:', err);
-    res.status(500).json({ error: 'Failed to add POC. ' + err.message });
+    res.status(500).json({ error: 'Failed to add POC.' });
   }
 });
 
 // ─── PUT update POC ────────────────────────────────────────────────────────
 // Endpoint to update an existing POC
 // Existing POC ko update karne ka endpoint
-router.put('/:id/pocs/:pocId', async (req, res) => {
+router.put('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
   // Extract updated POC details from request body
   // Request body se updated POC details extract karna
   const { poc_name, poc_email, poc_phone } = req.body;
@@ -269,7 +270,7 @@ router.put('/:id/pocs/:pocId', async (req, res) => {
 // ─── DELETE POC ────────────────────────────────────────────────────────────
 // Endpoint to delete a POC
 // POC ko delete karne ka endpoint
-router.delete('/:id/pocs/:pocId', async (req, res) => {
+router.delete('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
   try {
     // Delete POC ensuring it belongs to the correct client
     // POC ko delete karna, ensure karna ki yeh sahi client ka hai

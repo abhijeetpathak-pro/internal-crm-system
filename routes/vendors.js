@@ -5,7 +5,8 @@ const router = express.Router();
 // Import database connection pool
 const pool = require('../db');
 // Import authentication middleware to protect routes
-const { requireLogin } = require('../middleware/auth');
+const { requireLogin, requireRole } = require('../middleware/auth');
+const requireAdmin = requireRole('admin', 'super_admin');
 
 // ── APPLY MIDDLEWARE ──
 // Employee, Admin, Superadmin sabko full access
@@ -52,7 +53,7 @@ router.get('/:id', async (req, res) => {
 
 // ─── POST create vendor ───────────────────────────────────────────────────
 // Naya vendor create karne ka API endpoint
-router.post('/', async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   // Request body se vendor details extract karna
   const { vendor_name, short_code, website, address, email, phone } = req.body;
   
@@ -84,13 +85,13 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     console.error('POST vendor error:', err);
-    res.status(500).json({ error: 'Failed to create vendor. ' + err.message });
+    res.status(500).json({ error: 'Failed to create vendor.' });
   }
 });
 
 // ─── PUT update vendor ────────────────────────────────────────────────────
 // Existing vendor ko update karne ka API endpoint
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   // Request body se updated vendor details extract karna
   const { vendor_name, short_code, website, address, email, phone } = req.body;
   
@@ -120,13 +121,13 @@ router.put('/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('PUT vendor error:', err);
-    res.status(500).json({ error: 'Failed to update vendor. ' + err.message });
+    res.status(500).json({ error: 'Failed to update vendor.' });
   }
 });
 
 // ─── DELETE vendor ────────────────────────────────────────────────────────
 // Vendor ko delete karne ka API endpoint (with dependency check)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     // Check: Vendor se associated resources toh nahi hain?
     const [resources] = await pool.query(
@@ -159,7 +160,7 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('DELETE vendor error:', err);
-    res.status(500).json({ error: 'Failed to delete vendor. ' + err.message });
+    res.status(500).json({ error: 'Failed to delete vendor.' });
   }
 });
 
@@ -185,7 +186,7 @@ router.get('/:id/pocs', async (req, res) => {
 
 // ─── POST create POC ──────────────────────────────────────────────────────
 // Vendor ke liye naya POC add karne ka endpoint
-router.post('/:id/pocs', async (req, res) => {
+router.post('/:id/pocs', requireAdmin, async (req, res) => {
   // Request body se POC details extract karna
   const { poc_name, poc_email, poc_phone } = req.body;
   
@@ -211,13 +212,13 @@ router.post('/:id/pocs', async (req, res) => {
     });
   } catch (err) {
     console.error('POST POC error:', err);
-    res.status(500).json({ error: 'Failed to add POC. ' + err.message });
+    res.status(500).json({ error: 'Failed to add POC.' });
   }
 });
 
 // ─── PUT update POC ────────────────────────────────────────────────────────
 // Existing POC ko update karne ka endpoint
-router.put('/:id/pocs/:pocId', async (req, res) => {
+router.put('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
   // Request body se updated POC details extract karna
   const { poc_name, poc_email, poc_phone } = req.body;
   
@@ -248,7 +249,7 @@ router.put('/:id/pocs/:pocId', async (req, res) => {
 
 // ─── DELETE POC ────────────────────────────────────────────────────────────
 // POC ko delete karne ka endpoint
-router.delete('/:id/pocs/:pocId', async (req, res) => {
+router.delete('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
   try {
     // POC delete karna, ensure karna ki yeh sahi vendor ka hai
     const [result] = await pool.query(

@@ -58,7 +58,9 @@
           <i class="fa-solid fa-briefcase"></i> Clients
         </a>
         <ul class="dropdown-menu">
+          <% if(user.role==='admin'||user.role==='super_admin'){ %>
           <li><a class="dropdown-item" href="/clients/add"><i class="fa-solid fa-plus me-2"></i>Add Client</a></li>
+          <% } %>
           <li><a class="dropdown-item" href="/clients"><i class="fa-solid fa-eye me-2"></i>View Clients</a></li>
         </ul>
       </li>
@@ -69,7 +71,9 @@
           <i class="fa-solid fa-handshake"></i> Vendors
         </a>
         <ul class="dropdown-menu">
+          <% if(user.role==='admin'||user.role==='super_admin'){ %>
           <li><a class="dropdown-item" href="/vendors/add"><i class="fa-solid fa-plus me-2"></i>Add Vendor</a></li>
+          <% } %>
           <li><a class="dropdown-item" href="/vendors"><i class="fa-solid fa-eye me-2"></i>View Vendors</a></li>
         </ul>
       </li>
