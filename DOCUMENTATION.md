@@ -337,3 +337,10 @@ profiles **they personally** sent.
 - [ ] On the requirement page, move a resource to `L2` → open that resource's own page → confirm it also shows `L2`
 - [ ] Reload the dashboard → stat cards and all four charts render (Requirements Trend, Leads Trend, Work Breakdown, Resource Split)
 - [ ] Try adding a duplicate resource (same vendor + name + skill) → blocked with the duplicate warning
+
+
+## v7 — Follow-ups & Tasks
+
+The CRM now includes a `/tasks` workspace and `/api/tasks` endpoints for follow-up work. Tasks support a title, description, due date, priority (`Low`, `Medium`, `High`), status (`Pending`, `In Progress`, `Completed`, `Cancelled`), an optional assignee, and an optional link to a requirement, resource, lead, client, or vendor.
+
+Administrators can view and manage all active-user tasks. Employees can create and view tasks they created or were assigned, and new employee-created tasks are assigned to the creator. Employees cannot reassign tasks to other users. Apply `migration_v7.sql` to an existing installation; fresh installations receive the table from `schema.sql`.
