@@ -144,6 +144,8 @@
               <select id="dbResource" class="form-select form-select-sm">
                 <option value="">Loading...</option>
               </select>
+              <button type="button" id="matchResourceBtn" class="btn btn-outline-primary btn-sm mt-2" onclick="matchSelectedResource()"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Match with Requirement</button>
+              <div id="matchResult" class="small mt-2 d-none"></div>
             </div>
             <div class="mb-2">
               <label class="form-label small">Note *</label>
@@ -431,6 +433,23 @@
       loadDbResources();
     }
 
+    async function matchSelectedResource() {
+      var resourceId = document.getElementById('dbResource').value;
+      var resultBox = document.getElementById('matchResult');
+      var button = document.getElementById('matchResourceBtn');
+      if (!resourceId) { resultBox.className='small mt-2 text-danger'; resultBox.textContent='Select a resource first.'; return; }
+      button.disabled=true; button.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Matching...';
+      try {
+        var res = await fetch('/api/ai/match', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ requirement_id:REQ_ID, resource_id:resourceId }) });
+        var payload = await res.json(); if (!res.ok) throw new Error(payload.error || 'Unable to calculate match.');
+        var data = payload.data || {}; var score = Number.parseInt(data.score,10) || 0;
+        resultBox.className='alert alert-info mt-2 py-2 small';
+        resultBox.innerHTML='<strong>'+escapeHtml(data.recommendation || 'Match')+' — '+score+'/100</strong><br>'+escapeHtml(data.explanation || '')+(data.matched_skills?.length ? '<br><span class="text-success">Matched: '+escapeHtml(data.matched_skills.join(', '))+'</span>' : '')+(data.missing_skills?.length ? '<br><span class="text-danger">Missing: '+escapeHtml(data.missing_skills.join(', '))+'</span>' : '');
+      } catch (err) { resultBox.className='small mt-2 text-danger'; resultBox.textContent=err.message; }
+      finally { button.disabled=false; button.innerHTML='<i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Match with Requirement'; }
+    }
+
+    // Case A: Database selection
     async function submitDbResource() {
       var resourceId = document.getElementById('dbResource').value;
       var note = document.getElementById('dbNote').value.trim();

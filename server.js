@@ -37,6 +37,7 @@ const activityApi     = require('./routes/activity');
 const statsApi        = require('./routes/stats');
 const searchApi       = require('./routes/search');
 const tasksApi        = require('./routes/tasks');
+const aiApi           = require('./routes/ai');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -125,6 +126,7 @@ app.use('/api/activity',     activityApi);
 app.use('/api/dashboard/stats', statsApi);
 app.use('/api/search',       searchApi);   // GET /api/search?q=
 app.use('/api/tasks',        tasksApi);
+app.use('/api/ai',           aiApi);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {

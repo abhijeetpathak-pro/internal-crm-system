@@ -180,8 +180,9 @@ CREATE TABLE IF NOT EXISTS crm_tasks (
   entity_type  ENUM('requirement','resource','lead','client','vendor') NULL,
   entity_id    INT NULL,
   created_by   INT NOT NULL,
-  completed_at TIMESTAMP NULL,
-  created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at     TIMESTAMP NULL,
+  last_reminded_at TIMESTAMP NULL,
+  created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_task_assigned_to FOREIGN KEY (assigned_to) REFERENCES crm_users(id) ON DELETE SET NULL,
   CONSTRAINT fk_task_created_by FOREIGN KEY (created_by) REFERENCES crm_users(id) ON DELETE RESTRICT
