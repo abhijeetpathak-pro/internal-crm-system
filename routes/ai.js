@@ -51,7 +51,7 @@ router.post('/match', async (req, res) => {
     }
     const [[requirement], [resource]] = await Promise.all([
       pool.query(requirementSql, requirementParams),
-      pool.query('SELECT id,resource_name,title,skills,experience_years,current_location,preferred_location,salary_lpa FROM crm_resources WHERE id=?', [resourceId])
+      pool.query('SELECT id,resource_name,title,skills,experience_years,current_location,preferred_location,salary_lpm FROM crm_resources WHERE id=?', [resourceId])
     ]);
     if (!requirement.length) return res.status(404).json({ error: 'Requirement not found or not accessible.' });
     if (!resource.length) return res.status(404).json({ error: 'Resource not found.' });
