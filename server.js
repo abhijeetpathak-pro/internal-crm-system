@@ -23,6 +23,7 @@ const resourcesPage    = require('./routes/resourcesPage');
 const membersPage      = require('./routes/membersPage');
 const profilePage      = require('./routes/profilePage');
 const teamPage         = require('./routes/teamPage');
+const tasksPage         = require('./routes/tasksPage');
 
 // ── JSON API routes ───────────────────────────────────────────────────────────
 const usersApi        = require('./routes/users');
@@ -35,6 +36,8 @@ const requirementsApi = require('./routes/requirements');
 const activityApi     = require('./routes/activity');
 const statsApi        = require('./routes/stats');
 const searchApi       = require('./routes/search');
+const tasksApi        = require('./routes/tasks');
+const aiApi           = require('./routes/ai');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -101,6 +104,7 @@ app.use('/', resourcesPage);
 app.use('/', membersPage);
 app.use('/', profilePage);
 app.use('/', teamPage);          // GET /team + POST /api/team/*
+app.use('/', tasksPage);
 app.use('/super-admin', superAdminRoutes);
 
 // ── API routes (all need login) ───────────────────────────────────────────────
@@ -121,6 +125,8 @@ app.use('/api/activity',     activityApi);
 // threw, and the whole chart-drawing script aborted before touching Chart.js.
 app.use('/api/dashboard/stats', statsApi);
 app.use('/api/search',       searchApi);   // GET /api/search?q=
+app.use('/api/tasks',        tasksApi);
+app.use('/api/ai',           aiApi);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {

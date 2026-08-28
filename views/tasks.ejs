@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head',{title:'Follow-ups — CWA CRM'}) %>
+  <style>
+    .task-row.task-completed { opacity:.62; }
+    .priority-high { color:#b91c1c; background:#fef2f2; }
+    .priority-medium { color:#92400e; background:#fffbeb; }
+    .priority-low { color:#166534; background:#f0fdf4; }
+    .due-overdue { color:#b91c1c; font-weight:600; }
+    .due-today { color:#92400e; font-weight:600; }
+  </style>
+</head>
+<body>
+  <%- include('partials/sidebar',{user,active}) %>
+  <div class="main-content">
+    <%- include('partials/topbar',{user}) %>
+
+    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+      <div>
+        <h4 class="fw-semibold mb-1"><i class="fa-solid fa-list-check me-2 text-danger"></i>Follow-ups & Tasks</h4>
+        <div class="small text-secondary">Keep candidate, client and requirement follow-ups on schedule.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#taskModal" onclick="resetTaskForm()"><i class="fa-solid fa-plus me-1"></i>New Task</button>
+    </div>
+
+    <div class="card stat-card p-3 mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3"><label class="form-label small mb-1">Status</label><select id="filterStatus" class="form-select form-select-sm"><option value="">All statuses</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>Cancelled</option></select></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Priority</label><select id="filterPriority" class="form-select form-select-sm"><option value="">All priorities</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+        <div class="col-md-3"><label class="form-label small mb-1">Due</label><select id="filterDue" class="form-select form-select-sm"><option value="">Any date</option><option value="overdue">Overdue</option><option value="today">Due today</option></select></div>
+        <div class="col-md-3"><div id="taskCount" class="small text-secondary text-md-end">Showing <%= tasks.length %> tasks</div></div>
+      </div>
+    </div>
+
+    <div class="card stat-card p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr class="text-secondary small text-uppercase border-bottom"><th class="ps-3">Task</th><th>Due</th><th>Priority</th><th>Status</th><th>Assigned to</th><th>Linked record</th><th class="pe-3"></th></tr></thead>
+          <tbody id="taskTableBody">
+          <% tasks.forEach(function(t){
+            const isClosed = t.status === 'Completed' || t.status === 'Cancelled';
+            const due = t.due_date ? new Date(t.due_date).toISOString().slice(0,10) : '';
+            const today = new Date().toISOString().slice(0,10);
+            const dueClass = !isClosed && due && due < today ? 'due-overdue' : (!isClosed && due === today ? 'due-today' : '');
+            const entityLabel = t.entity_type ? (t.entity_type.charAt(0).toUpperCase()+t.entity_type.slice(1)) + ' #' + t.entity_id : '—';
+          %>
+            <tr class="task-row <%= isClosed?'task-completed':'' %>" data-status="<%= t.status %>" data-priority="<%= t.priority %>" data-due="<%= due %>">
+              <td class="ps-3"><div class="fw-semibold"><%= t.title %></div><% if(t.description){ %><div class="small text-secondary text-truncate" style="max-width:300px"><%= t.description %></div><% } %><div class="small text-secondary">Created by <%= t.creator_name || 'Unknown' %></div></td>
+              <td class="small <%= dueClass %>"><%= due || 'No date' %><% if(dueClass==='due-overdue'){ %><div class="small">Overdue</div><% }else if(dueClass==='due-today'){ %><div class="small">Today</div><% } %></td>
+              <td><span class="badge rounded-pill priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
+              <td><span class="badge rounded-pill bg-light text-dark border"><%= t.status %></span></td>
+              <td class="small"><%= t.assignee_name || 'Unassigned' %></td>
+              <td class="small text-secondary"><%= entityLabel %></td>
+              <td class="pe-3 text-end"><div class="dropdown"><button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end shadow-sm border-0"><li><a class="dropdown-item edit-task" href="#" data-task='<%= JSON.stringify(t) %>'><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li><% if(t.status!=='Completed'){ %><li><a class="dropdown-item complete-task" href="#" data-id="<%= t.id %>"><i class="fa-solid fa-check me-2 text-success"></i>Mark completed</a></li><% } %><li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger delete-task" href="#" data-id="<%= t.id %>"><i class="fa-solid fa-trash me-2"></i>Delete</a></li></ul></div></td>
+            </tr>
+          <% }); %>
+          <% if(!tasks.length){ %><tr id="emptyTasks"><td colspan="7" class="text-center py-5 text-secondary"><i class="fa-regular fa-calendar-xmark d-block fs-3 mb-2"></i>No follow-up tasks yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="taskModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header border-0"><h5 class="modal-title fw-semibold" id="taskModalTitle">New Follow-up Task</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><form id="taskForm"><div class="modal-body"><input type="hidden" id="taskId"><div class="mb-2"><label class="form-label small">Title *</label><input type="text" id="taskTitle" class="form-control form-control-sm" maxlength="255" required></div><div class="mb-2"><label class="form-label small">Description</label><textarea id="taskDescription" class="form-control form-control-sm" rows="3" maxlength="5000"></textarea></div><div class="row g-2"><div class="col-md-4"><label class="form-label small">Due date</label><input type="date" id="taskDue" class="form-control form-control-sm"></div><div class="col-md-4"><label class="form-label small">Priority</label><select id="taskPriority" class="form-select form-select-sm"><option>Low</option><option selected>Medium</option><option>High</option></select></div><div class="col-md-4" id="taskStatusWrap"><label class="form-label small">Status</label><select id="taskStatus" class="form-select form-select-sm"><option>Pending</option><option>In Progress</option><option>Completed</option><option>Cancelled</option></select></div></div><% if(['admin','super_admin'].includes(user.role)){ %><div class="row g-2 mt-1"><div class="col-md-6"><label class="form-label small">Assign to</label><select id="taskAssignee" class="form-select form-select-sm"><option value="">Unassigned</option><% users.forEach(function(u){ %><option value="<%= u.id %>"><%= u.name %> — <%= u.email %></option><% }); %></select></div><div class="col-md-6"><label class="form-label small">Link type</label><select id="taskEntityType" class="form-select form-select-sm"><option value="">No linked record</option><option value="requirement">Requirement</option><option value="resource">Resource</option><option value="lead">Lead</option><option value="client">Client</option><option value="vendor">Vendor</option></select></div></div><div class="mt-2"><label class="form-label small">Linked record ID <span class="text-secondary">(optional)</span></label><input type="number" min="1" id="taskEntityId" class="form-control form-control-sm"></div><% } %><div id="taskMessage" class="alert d-none mt-3 py-2 small"></div></div><div class="modal-footer border-0"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary btn-sm">Save task</button></div></form></div></div></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const taskModal = new bootstrap.Modal(document.getElementById('taskModal'));
+    const isAdmin = <%= ['admin','super_admin'].includes(user.role) ? 'true' : 'false' %>;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    function resetTaskForm(){
+      document.getElementById('taskForm').reset(); document.getElementById('taskId').value=''; document.getElementById('taskModalTitle').textContent='New Follow-up Task';
+      document.getElementById('taskPriority').value='Medium'; document.getElementById('taskStatus').value='Pending';
+      const msg=document.getElementById('taskMessage'); msg.className='alert d-none mt-3 py-2 small'; msg.textContent='';
+    }
+    function editTask(task){
+      document.getElementById('taskId').value=task.id; document.getElementById('taskTitle').value=task.title||''; document.getElementById('taskDescription').value=task.description||'';
+      document.getElementById('taskDue').value=task.due_date ? String(task.due_date).slice(0,10) : ''; document.getElementById('taskPriority').value=task.priority; document.getElementById('taskStatus').value=task.status;
+      if(isAdmin){ document.getElementById('taskAssignee').value=task.assigned_to||''; document.getElementById('taskEntityType').value=task.entity_type||''; document.getElementById('taskEntityId').value=task.entity_id||''; }
+      document.getElementById('taskModalTitle').textContent='Edit Follow-up Task'; taskModal.show();
+    }
+    document.querySelectorAll('.edit-task').forEach(link=>link.addEventListener('click', e=>{e.preventDefault();editTask(JSON.parse(link.dataset.task));}));
+    document.querySelectorAll('.complete-task').forEach(link=>link.addEventListener('click', async e=>{e.preventDefault();await updateStatus(link.dataset.id,'Completed');}));
+    document.querySelectorAll('.delete-task').forEach(link=>link.addEventListener('click', async e=>{e.preventDefault();if(!confirm('Delete this task?'))return;const res=await fetch('/api/tasks/'+link.dataset.id,{method:'DELETE'});if(res.ok)location.reload();else alert((await res.json()).error||'Failed to delete task.');}));
+    async function updateStatus(id,status){const res=await fetch('/api/tasks/'+id+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});if(res.ok)location.reload();else alert((await res.json()).error||'Failed to update task.');}
+    document.getElementById('taskForm').addEventListener('submit', async e=>{
+      e.preventDefault(); const id=document.getElementById('taskId').value; const payload={title:document.getElementById('taskTitle').value,description:document.getElementById('taskDescription').value,due_date:document.getElementById('taskDue').value,priority:document.getElementById('taskPriority').value,status:document.getElementById('taskStatus').value};
+      if(isAdmin){payload.assigned_to=document.getElementById('taskAssignee').value;payload.entity_type=document.getElementById('taskEntityType').value;payload.entity_id=document.getElementById('taskEntityId').value;}
+      const res=await fetch(id?'/api/tasks/'+id:'/api/tasks',{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const data=await res.json(); if(res.ok) location.reload(); else {const msg=document.getElementById('taskMessage');msg.className='alert alert-danger mt-3 py-2 small';msg.textContent=data.error||'Unable to save task.';}
+    });
+    function applyFilters(){const status=document.getElementById('filterStatus').value,priority=document.getElementById('filterPriority').value,due=document.getElementById('filterDue').value,today=new Date().toISOString().slice(0,10);let count=0;document.querySelectorAll('.task-row').forEach(row=>{const rowDue=row.dataset.due;const show=(!status||row.dataset.status===status)&&(!priority||row.dataset.priority===priority)&&(!due||(due==='overdue'&&rowDue&&rowDue<today&&!['Completed','Cancelled'].includes(row.dataset.status))||(due==='today'&&rowDue===today&&!['Completed','Cancelled'].includes(row.dataset.status)));row.style.display=show?'':'none';if(show)count++;});document.getElementById('taskCount').textContent='Showing '+count+' tasks';}
+    ['filterStatus','filterPriority','filterDue'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilters));
+  </script>
+</body>
+</html>

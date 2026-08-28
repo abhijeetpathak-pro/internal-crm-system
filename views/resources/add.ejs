@@ -69,7 +69,11 @@
           <!-- ─── CV UPLOAD ─── -->
           <div class="col-12">
             <label class="form-label">CV Upload (PDF/DOC/DOCX, max 5MB)</label>
-            <input type="file" name="cv" class="form-control" accept=".pdf,.doc,.docx">
+            <div class="input-group">
+              <input type="file" name="cv" id="cvFile" class="form-control" accept=".pdf,.doc,.docx">
+              <button type="button" id="parseCvBtn" class="btn btn-outline-primary"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Parse with AI</button>
+            </div>
+            <small class="text-secondary" style="font-size:0.7rem">AI reads the selected CV to suggest fields. Review everything before saving.</small>
           </div>
 
           <div class="col-12">
@@ -171,6 +175,27 @@
         console.error('Error loading POCs:', err);
       }
     }
+
+    // ─── AI CV PARSER ───
+    document.getElementById('parseCvBtn').addEventListener('click', async function() {
+      const fileInput = document.getElementById('cvFile');
+      const msgBox = document.getElementById('msg');
+      if (!fileInput.files.length) { msgBox.className='alert alert-warning mt-3'; msgBox.textContent='Select a CV before using AI parsing.'; return; }
+      const formData = new FormData(); formData.append('cv', fileInput.files[0]);
+      this.disabled = true; this.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Parsing...';
+      try {
+        const res = await fetch('/api/ai/parse-resume', { method:'POST', body:formData });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Unable to parse CV.');
+        const data = payload.data || {};
+        const form = document.getElementById('addResForm');
+        const setValue = (name, value) => { if (value !== undefined && value !== null && value !== '') { const field=form.elements[name]; if(field) field.value=value; } };
+        setValue('resource_name', data.resource_name); setValue('title', data.title); setValue('email', data.email); setValue('contact_number', data.contact_number);
+        setValue('skills', data.skills); setValue('experience_years', data.experience_years); setValue('current_location', data.current_location); setValue('preferred_location', data.preferred_location);
+        msgBox.className='alert alert-success mt-3'; msgBox.textContent='AI suggestions filled in. Please verify every field before saving.';
+      } catch (err) { msgBox.className='alert alert-danger mt-3'; msgBox.textContent=err.message; }
+      finally { this.disabled=false; this.innerHTML='<i class="fa-solid fa-wand-magic-sparkles me-1"></i>Parse with AI'; }
+    });
 
     // ─── FORM SUBMIT ───
     document.getElementById('addResForm').addEventListener('submit', async function(e) {

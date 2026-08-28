@@ -337,3 +337,21 @@ profiles **they personally** sent.
 - [ ] On the requirement page, move a resource to `L2` → open that resource's own page → confirm it also shows `L2`
 - [ ] Reload the dashboard → stat cards and all four charts render (Requirements Trend, Leads Trend, Work Breakdown, Resource Split)
 - [ ] Try adding a duplicate resource (same vendor + name + skill) → blocked with the duplicate warning
+
+
+## v7 — Follow-ups & Tasks
+
+The CRM now includes a `/tasks` workspace and `/api/tasks` endpoints for follow-up work. Tasks support a title, description, due date, priority (`Low`, `Medium`, `High`), status (`Pending`, `In Progress`, `Completed`, `Cancelled`), an optional assignee, and an optional link to a requirement, resource, lead, client, or vendor.
+
+Administrators can view and manage all active-user tasks. Employees can create and view tasks they created or were assigned, and new employee-created tasks are assigned to the creator. Employees cannot reassign tasks to other users. Apply `migration_v7.sql` to an existing installation; fresh installations receive the table from `schema.sql`.
+
+
+## v8 — AI-assisted recruitment and task reminders
+
+The resource creation form now includes an optional **Parse with AI** action. It temporarily uploads a PDF/DOC/DOCX CV, extracts readable text on the server, requests structured candidate fields from the configured OpenAI-compatible provider, and then fills the existing manual form for user review. The temporary parsing upload is deleted after the request; the CV is only retained when the user submits the normal resource form.
+
+The requirement detail page includes **AI Match with Requirement** for a selected resource. It compares job-relevant evidence—title, skills, experience, location, and salary when provided—and returns a bounded score, matched skills, missing skills, and an explanation. The result is a recommendation only; it does not automatically reject, select, contact, or map a candidate.
+
+Set `OPENAI_API_KEY`, optionally `OPENAI_API_BASE`, and `AI_MODEL` in the server environment. The default model is `gpt-5-mini`; all AI calls occur server-side. Do not place keys in browser code, `.env.example`, Git, or uploaded files. Because resumes can contain personal information, enable the feature only with a provider and data-retention policy approved by the company.
+
+The optional `npm run reminders` job emails active assignees about due or overdue tasks. Configure the `SMTP_*` variables and run it once daily using the host's scheduler. Each task records `last_reminded_at`, so a task is not sent repeatedly on the same day. Apply the updated `migration_v7.sql` to existing databases; fresh installs use the updated `schema.sql`.
