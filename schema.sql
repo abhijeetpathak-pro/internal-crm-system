@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS crm_resources (
   linkedin            VARCHAR(500) NULL,
   preferred_location  VARCHAR(255) NULL,
   current_location    VARCHAR(255) NULL,
-  salary_lpa          DECIMAL(10,2) NULL,
+  salary_lpm          DECIMAL(10,2) NULL,
   created_by          INT NULL,
   created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_res_vendor FOREIGN KEY (vendor_id) REFERENCES crm_vendors(id) ON DELETE SET NULL,

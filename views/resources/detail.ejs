@@ -88,7 +88,7 @@
         </div>
         
         <div class="col-md-4"><span class="text-secondary">Skills:</span> <%= resource.skills||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Salary:</span> <%= resource.salary_lpm ? resource.salary_lpm + ' LPM' : (resource.salary_lpa ? resource.salary_lpa + ' LPA' : '—') %></div>
+        <div class="col-md-4"><span class="text-secondary">Salary:</span> <%= resource.salary_lpm ? resource.salary_lpm + ' LPM' : '—' %></div>
         <div class="col-md-4"><span class="text-secondary">Current Location:</span> <%= resource.current_location||'—' %></div>
         <div class="col-md-4"><span class="text-secondary">Preferred Location:</span> <%= resource.preferred_location||'—' %></div>
         <% if(resource.type==='Vendor'){ %>
