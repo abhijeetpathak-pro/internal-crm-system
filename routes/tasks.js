@@ -21,7 +21,8 @@ function parseTaskInput(body) {
   const status = body.status || 'Pending';
   const dueDate = body.due_date ? String(body.due_date) : null;
   const assignedTo = body.assigned_to === '' || body.assigned_to == null ? null : Number.parseInt(body.assigned_to, 10);
-  const entityType = body.entity_type || null;
+  const rawEntityType = typeof body.entity_type === 'string' ? body.entity_type.trim().toLowerCase() : '';
+  const entityType = rawEntityType || null;
   const entityId = body.entity_id === '' || body.entity_id == null ? null : Number.parseInt(body.entity_id, 10);
 
   return { title, description, priority, status, dueDate, assignedTo, entityType, entityId };
@@ -55,6 +56,31 @@ async function ensureEntityExists(type, id) {
 function canManage(task, user) {
   return isAdmin(user) || task.created_by === user.id || task.assigned_to === user.id;
 }
+
+// Return real CRM records for the task form instead of asking users to guess IDs.
+router.get('/entity-options/:type', async (req, res) => {
+  const type = req.params.type;
+  const queries = {
+    requirement: { sql: 'SELECT id, title AS label FROM crm_requirements ORDER BY created_at DESC LIMIT 500', params: [] },
+    resource: { sql: 'SELECT id, CONCAT(resource_name, " — ", unique_uid) AS label FROM crm_resources ORDER BY created_at DESC LIMIT 500', params: [] },
+    lead: { sql: 'SELECT id, name AS label FROM crm_leads ORDER BY created_at DESC LIMIT 500', params: [] },
+    client: { sql: 'SELECT id, company_name AS label FROM crm_clients ORDER BY company_name LIMIT 500', params: [] },
+    vendor: { sql: 'SELECT id, vendor_name AS label FROM crm_vendors ORDER BY vendor_name LIMIT 500', params: [] }
+  };
+  if (!queries[type]) return res.status(400).json({ error: 'Invalid linked entity type.' });
+  try {
+    const query = queries[type];
+    if (type === 'requirement' && !isAdmin(req.session.user)) {
+      query.sql = 'SELECT id, title AS label FROM crm_requirements WHERE created_by=? ORDER BY created_at DESC LIMIT 500';
+      query.params = [req.session.user.id];
+    }
+    const [rows] = await pool.query(query.sql, query.params);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET task entity options error:', err);
+    res.status(500).json({ error: 'Failed to load linked records.' });
+  }
+});
 
 // GET tasks; employees see tasks they created or were assigned.
 router.get('/', async (req, res) => {
