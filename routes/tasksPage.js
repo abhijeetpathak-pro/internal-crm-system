@@ -18,9 +18,14 @@ router.get('/tasks', requireLogin, async (req, res) => {
     }
     sql += ' ORDER BY (t.status IN ("Completed","Cancelled")), t.due_date IS NULL, t.due_date ASC, FIELD(t.priority,"High","Medium","Low"), t.created_at DESC LIMIT 250';
     const [tasks] = await pool.query(sql, params);
-    const [users] = ['admin', 'super_admin'].includes(user.role)
-      ? await pool.query('SELECT id,name,email FROM crm_users WHERE status="active" ORDER BY name')
-      : [[]];
+    let users = [];
+    if (user.role === 'super_admin') {
+      const [rows] = await pool.query('SELECT id,name,email,role FROM crm_users WHERE status="active" AND role IN ("admin","emp") ORDER BY FIELD(role,"admin","emp"), name');
+      users = rows;
+    } else if (user.role === 'admin') {
+      const [rows] = await pool.query('SELECT id,name,email,role FROM crm_users WHERE status="active" AND role="emp" ORDER BY name');
+      users = rows;
+    }
     res.render('tasks', { tasks, users, user, active: 'tasks' });
   } catch (err) {
     console.error('Tasks page error:', err);

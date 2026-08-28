@@ -159,7 +159,7 @@
               <!-- ✅ FIX: Budget Format -->
               <td>
                 <span class="ellipsis">
-                  <%= r.salary_lpm ? r.salary_lpm + ' LPM' : (r.salary_lpa ? r.salary_lpa + ' LPA' : '—') %>
+                  <%= r.salary_lpm ? r.salary_lpm + ' LPM' : '—' %>
                 </span>
               </td>
               
@@ -262,7 +262,7 @@
 
         const isVendor = r.type === 'Vendor';
         const expVal = (typeof r.experience_years !== 'undefined' && r.experience_years !== null) ? r.experience_years : (r.experience || '');
-        const salVal = r.salary_lpm || r.salary_lpa || '';
+        const salVal = r.salary_lpm || '';
 
         let vendorOptions = '<option value="">Select vendor...</option>' + vendors.map(v => 
           `<option value="${Number.parseInt(v.id, 10)}" ${r.vendor_id == v.id ? 'selected' : ''}>${escapeHtml(v.vendor_name)} (${escapeHtml(v.short_code)})</option>`

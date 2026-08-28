@@ -41,9 +41,12 @@ function validateTaskInput(input, { allowStatus = true } = {}) {
   return null;
 }
 
-async function ensureUserExists(userId) {
-  const [rows] = await pool.query('SELECT id FROM crm_users WHERE id=? AND status="active"', [userId]);
-  return rows.length > 0;
+async function ensureAssigneeAllowed(actor, userId) {
+  const [rows] = await pool.query('SELECT id,role FROM crm_users WHERE id=? AND status="active"', [userId]);
+  if (!rows.length) return false;
+  if (actor.role === 'super_admin') return ['admin', 'emp'].includes(rows[0].role);
+  if (actor.role === 'admin') return rows[0].role === 'emp';
+  return rows[0].id === actor.id;
 }
 
 async function ensureEntityExists(type, id) {
@@ -122,7 +125,7 @@ router.post('/', async (req, res) => {
 
   try {
     if (!isAdmin(req.session.user)) input.assignedTo = req.session.user.id;
-    if (input.assignedTo && !(await ensureUserExists(input.assignedTo))) return res.status(400).json({ error: 'Assignee not found or inactive.' });
+    if (input.assignedTo && !(await ensureAssigneeAllowed(req.session.user, input.assignedTo))) return res.status(400).json({ error: 'Assignee not found, inactive, or not allowed for your role.' });
     if (!(await ensureEntityExists(input.entityType, input.entityId))) return res.status(400).json({ error: 'Linked entity not found.' });
 
     const [result] = await pool.query(
@@ -171,7 +174,7 @@ router.patch('/:id', async (req, res) => {
     if (!isAdmin(req.session.user) && input.assignedTo !== null && input.assignedTo !== req.session.user.id) {
       return res.status(403).json({ error: 'Employees can assign tasks only to themselves.' });
     }
-    if (input.assignedTo && !(await ensureUserExists(input.assignedTo))) return res.status(400).json({ error: 'Assignee not found or inactive.' });
+    if (input.assignedTo && !(await ensureAssigneeAllowed(req.session.user, input.assignedTo))) return res.status(400).json({ error: 'Assignee not found, inactive, or not allowed for your role.' });
     if (!(await ensureEntityExists(input.entityType, input.entityId))) return res.status(400).json({ error: 'Linked entity not found.' });
 
     const completedAt = input.status === 'Completed' ? 'CURRENT_TIMESTAMP' : 'NULL';

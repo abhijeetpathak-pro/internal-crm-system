@@ -111,7 +111,7 @@ async function matchCandidate(requirement, resource) {
   };
   return callStructuredAI(
     'You compare a staffing requirement with a candidate profile. Score only job-relevant evidence: skills, title, experience, location, and salary when provided. Do not infer or use protected characteristics. Give a concise, evidence-based explanation. Return JSON only.',
-    `REQUIREMENT\nTitle: ${cleanText(requirement.title, 255)}\nJD: ${cleanText(requirement.jd, 18000)}\nBudget: ${cleanText(requirement.budget, 255)}\n\nCANDIDATE\nName: ${cleanText(resource.resource_name, 255)}\nTitle: ${cleanText(resource.title, 255)}\nSkills: ${cleanText(resource.skills, 1000)}\nExperience years: ${resource.experience_years ?? ''}\nCurrent location: ${cleanText(resource.current_location, 255)}\nPreferred location: ${cleanText(resource.preferred_location, 255)}\nSalary: ${resource.salary_lpa ?? ''}`,
+    `REQUIREMENT\nTitle: ${cleanText(requirement.title, 255)}\nJD: ${cleanText(requirement.jd, 18000)}\nBudget: ${cleanText(requirement.budget, 255)}\n\nCANDIDATE\nName: ${cleanText(resource.resource_name, 255)}\nTitle: ${cleanText(resource.title, 255)}\nSkills: ${cleanText(resource.skills, 1000)}\nExperience years: ${resource.experience_years ?? ''}\nCurrent location: ${cleanText(resource.current_location, 255)}\nPreferred location: ${cleanText(resource.preferred_location, 255)}\nSalary (LPM): ${resource.salary_lpm ?? ''}`,
     schema
   );
 }

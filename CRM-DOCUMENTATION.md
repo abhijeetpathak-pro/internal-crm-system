@@ -343,7 +343,7 @@ profiles **they personally** sent.
 ### Critical bug: Add Resource / Edit Resource was completely broken
 `routes/resources.js` (both create and edit) and `routes/requirements.js`
 (inline "create new resource" from a requirement) were all inserting into a
-column called `salary_LPM` — but the real database column is `salary_lpa`.
+column called `salary_lpm` — the application and current schema use this LPM field consistently.
 Since the column named in the query simply doesn't exist, **every single
 Add Resource submission failed with a SQL error**, and Edit Resource /
 inline resource creation from a requirement were broken the same way.
