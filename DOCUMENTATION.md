@@ -355,3 +355,10 @@ The requirement detail page includes **AI Match with Requirement** for a selecte
 Set `OPENAI_API_KEY`, optionally `OPENAI_API_BASE`, and `AI_MODEL` in the server environment. The default model is `gpt-5-mini`; all AI calls occur server-side. Do not place keys in browser code, `.env.example`, Git, or uploaded files. Because resumes can contain personal information, enable the feature only with a provider and data-retention policy approved by the company.
 
 The optional `npm run reminders` job emails active assignees about due or overdue tasks. Configure the `SMTP_*` variables and run it once daily using the host's scheduler. Each task records `last_reminded_at`, so a task is not sent repeatedly on the same day. Apply the updated `migration_v7.sql` to existing databases; fresh installs use the updated `schema.sql`.
+
+
+## v10 update — hidden Super Admin and email follow-ups
+
+Super Admin has the highest permissions but is excluded from team and assignee lists. Super Admin can see and assign Admin/Employee users; Admin can see and assign Employee users; Employees cannot assign other users. Super Admin accounts cannot be disabled, role-changed, deleted, or exposed through normal user lists.
+
+Follow-ups now support actual email workflows. Migration `migration_v8.sql` adds `followup_to`, `followup_subject`, `followup_body`, and `email_sent_at` to `crm_tasks`. Users can save a follow-up draft and send it manually through the task action after SMTP is configured. Sending requires permission on the task and never happens automatically from merely saving a draft. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, and optionally `SMTP_SECURE` in the deployment environment.

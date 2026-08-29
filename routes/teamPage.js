@@ -12,19 +12,19 @@ const { requireLogin, requireRole } = require('../middleware/auth');
 // ─── GET team page ──────────────────────────────────────────────────────
 // Team members ki list dikhane wala page
 // Admin: Sirf Employees dekhta hai (Fix 9, 10)
-// Super Admin: Sabhi users dekhta hai (including other Super Admins)
+// Super Admin: Admin aur Employees dekhta hai; Super Admin accounts hidden rehte hain
 router.get('/team', requireLogin, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
     let query;
     
-    // Super Admin: sees all (including other super admins)
-    // Super Admin ko saare users dikhenge (including other Super Admins)
+    // Super Admin has the highest permissions but remains hidden from all user lists.
     if (req.session.user.role === 'super_admin') {
       query = `SELECT u.id, u.name, u.email, u.role, u.status, u.created_at,
                       c.name AS created_by_name
                FROM crm_users u
                LEFT JOIN crm_users c ON c.id = u.created_by
-               ORDER BY FIELD(u.role,'super_admin','admin','emp'), u.name`;
+               WHERE u.role != 'super_admin'
+               ORDER BY FIELD(u.role,'admin','emp'), u.name`;
     } else {
       // Admin: sees only Emp — NOT Super Admin, NOT other Admins
       // Admin ko sirf Employees dikhenge (Super Admin aur other Admins nahi)

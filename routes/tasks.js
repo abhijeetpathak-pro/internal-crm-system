@@ -1,4 +1,5 @@
 const express = require('express');
+const nodemailer = require('nodemailer');
 const router = express.Router();
 const pool = require('../db');
 const { requireLogin } = require('../middleware/auth');
@@ -24,8 +25,11 @@ function parseTaskInput(body) {
   const rawEntityType = typeof body.entity_type === 'string' ? body.entity_type.trim().toLowerCase() : '';
   const entityType = rawEntityType || null;
   const entityId = body.entity_id === '' || body.entity_id == null ? null : Number.parseInt(body.entity_id, 10);
+  const followupTo = typeof body.followup_to === 'string' ? body.followup_to.trim().toLowerCase() : '';
+  const followupSubject = typeof body.followup_subject === 'string' ? body.followup_subject.trim() : '';
+  const followupBody = typeof body.followup_body === 'string' ? body.followup_body.trim() : '';
 
-  return { title, description, priority, status, dueDate, assignedTo, entityType, entityId };
+  return { title, description, priority, status, dueDate, assignedTo, entityType, entityId, followupTo, followupSubject, followupBody };
 }
 
 function validateTaskInput(input, { allowStatus = true } = {}) {
@@ -38,6 +42,11 @@ function validateTaskInput(input, { allowStatus = true } = {}) {
   if (input.entityType !== null && !ENTITY_TYPES.includes(input.entityType)) return 'Invalid linked entity type.';
   if (input.entityType !== null && (!Number.isInteger(input.entityId) || input.entityId <= 0)) return 'A valid linked entity is required.';
   if (input.entityType === null && input.entityId !== null) return 'Entity type is required when entity ID is provided.';
+  if (input.followupTo && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(input.followupTo)) return 'Enter a valid follow-up email address.';
+  if (input.followupTo.length > 255) return 'Follow-up email is too long.';
+  if (input.followupSubject.length > 255) return 'Email subject must be at most 255 characters.';
+  if (input.followupBody.length > 10000) return 'Email body must be at most 10000 characters.';
+  if (input.followupTo && (!input.followupSubject || !input.followupBody)) return 'Email subject and body are required when a follow-up email is set.';
   return null;
 }
 
@@ -129,14 +138,39 @@ router.post('/', async (req, res) => {
     if (!(await ensureEntityExists(input.entityType, input.entityId))) return res.status(400).json({ error: 'Linked entity not found.' });
 
     const [result] = await pool.query(
-      `INSERT INTO crm_tasks (title,description,due_date,priority,assigned_to,entity_type,entity_id,created_by)
-       VALUES (?,?,?,?,?,?,?,?)`,
-      [input.title, input.description || null, input.dueDate, input.priority, input.assignedTo, input.entityType, input.entityId, req.session.user.id]
+      `INSERT INTO crm_tasks (title,description,due_date,priority,assigned_to,entity_type,entity_id,followup_to,followup_subject,followup_body,created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [input.title, input.description || null, input.dueDate, input.priority, input.assignedTo, input.entityType, input.entityId, input.followupTo || null, input.followupSubject || null, input.followupBody || null, req.session.user.id]
     );
     res.status(201).json({ id: result.insertId, message: 'Task created successfully.' });
   } catch (err) {
     console.error('POST task error:', err);
     res.status(500).json({ error: 'Failed to create task.' });
+  }
+});
+
+router.post('/:id/send-email', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM crm_tasks WHERE id=?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Task not found.' });
+    const task = rows[0];
+    if (!canManage(task, req.session.user)) return res.status(403).json({ error: 'Permission denied.' });
+    if (!task.followup_to || !task.followup_subject || !task.followup_body) return res.status(400).json({ error: 'Add recipient, subject, and body before sending.' });
+    const required = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+    const missing = required.filter(name => !process.env[name]);
+    if (missing.length) return res.status(503).json({ error: 'Email service is not configured yet.' });
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number.parseInt(process.env.SMTP_PORT, 10) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    await transporter.sendMail({ from: process.env.SMTP_FROM, to: task.followup_to, subject: task.followup_subject, text: task.followup_body });
+    await pool.query('UPDATE crm_tasks SET email_sent_at=CURRENT_TIMESTAMP WHERE id=?', [req.params.id]);
+    res.json({ message: 'Follow-up email sent successfully.' });
+  } catch (err) {
+    console.error('POST task email error:', err);
+    res.status(502).json({ error: 'Unable to send follow-up email.' });
   }
 });
 
@@ -179,8 +213,8 @@ router.patch('/:id', async (req, res) => {
 
     const completedAt = input.status === 'Completed' ? 'CURRENT_TIMESTAMP' : 'NULL';
     await pool.query(
-      `UPDATE crm_tasks SET title=?, description=?, due_date=?, priority=?, status=?, assigned_to=?, entity_type=?, entity_id=?, completed_at=${completedAt} WHERE id=?`,
-      [input.title, input.description || null, input.dueDate, input.priority, input.status, input.assignedTo, input.entityType, input.entityId, req.params.id]
+      `UPDATE crm_tasks SET title=?, description=?, due_date=?, priority=?, status=?, assigned_to=?, entity_type=?, entity_id=?, followup_to=?, followup_subject=?, followup_body=?, email_sent_at=NULL, completed_at=${completedAt} WHERE id=?`,
+      [input.title, input.description || null, input.dueDate, input.priority, input.status, input.assignedTo, input.entityType, input.entityId, input.followupTo || null, input.followupSubject || null, input.followupBody || null, req.params.id]
     );
     res.json({ message: 'Task updated successfully.' });
   } catch (err) {

@@ -1,0 +1,21 @@
+-- Email follow-up fields for CRM tasks. Apply after migration_v7.sql.
+
+SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='crm_tasks' AND COLUMN_NAME='followup_to') = 0,
+  'ALTER TABLE crm_tasks ADD COLUMN followup_to VARCHAR(255) NULL AFTER last_reminded_at',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='crm_tasks' AND COLUMN_NAME='followup_subject') = 0,
+  'ALTER TABLE crm_tasks ADD COLUMN followup_subject VARCHAR(255) NULL AFTER followup_to',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='crm_tasks' AND COLUMN_NAME='followup_body') = 0,
+  'ALTER TABLE crm_tasks ADD COLUMN followup_body TEXT NULL AFTER followup_subject',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='crm_tasks' AND COLUMN_NAME='email_sent_at') = 0,
+  'ALTER TABLE crm_tasks ADD COLUMN email_sent_at TIMESTAMP NULL AFTER followup_body',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
