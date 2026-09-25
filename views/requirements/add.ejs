@@ -1,100 +1,106 @@
-<!DOCTYPE html><html lang="en"><head><%- include('../partials/head',{title:'Add Requirement — CWA CRM'}) %></head>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <%- include('../partials/head',{title:'Add Requirement — CWA CRM'}) %>
+</head>
+
 <body>
-<%- include('../partials/sidebar',{user,active}) %>
-<div class="main-content">
-  <%- include('../partials/topbar',{user}) %>
-  <h4 class="fw-semibold mb-3"><i class="fa-solid fa-plus me-2 text-danger"></i>Add Requirement</h4>
-  <div class="card stat-card p-4" style="max-width:640px">
-    <form id="addReqForm">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Client *</label>
-          <select name="client_id" id="clientSel" class="form-select" required></select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">POC</label>
-          <select name="poc_id" id="pocSel" class="form-select"></select>
-        </div>
-        <div class="col-12">
-          <label class="form-label small fw-semibold">Requirement Title *</label>
-          <input type="text" name="title" class="form-control" required>
-        </div>
-        <div class="col-12">
-          <label class="form-label small fw-semibold">Job Description</label>
-          <textarea name="jd" class="form-control" rows="4"></textarea>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Status</label>
-          <!-- Point 3: only Open / Hold are choosable at creation time.
-               "Closed" is not a creatable status — closing happens later,
-               from the requirement detail page, and deletes the requirement
-               instead of just changing its status (see routes/requirements.js). -->
-          <input type="hidden" name="status" id="statusInput" value="Open">
-          <div class="btn-group w-100" role="group" id="statusToggle">
-            <button type="button" class="btn btn-sm" data-status="Open"
+  <%- include('../partials/sidebar',{user,active}) %>
+    <div class="main-content">
+      <%- include('../partials/topbar',{user}) %>
+        <h4 class="fw-semibold mb-3"><i class="fa-solid fa-plus me-2 text-danger"></i>Add Requirement</h4>
+        <div class="card stat-card p-4" style="max-width:640px">
+          <form id="addReqForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Client *</label>
+                <select name="client_id" id="clientSel" class="form-select" required></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">POC</label>
+                <select name="poc_id" id="pocSel" class="form-select"></select>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Requirement Title *</label>
+                <input type="text" name="title" class="form-control" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Job Description</label>
+                <textarea name="jd" class="form-control" rows="4"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Status</label>
+                <input type="hidden" name="status" id="statusInput" value="Open">
+                <div class="btn-group w-100" role="group" id="statusToggle">
+                  <button type="button" class="btn btn-sm" data-status="Open"
                     style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-weight:600">
-              <i class="fa-solid fa-circle-check me-1"></i>Open
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-status="Hold">
-              <i class="fa-solid fa-pause me-1"></i>Hold
-            </button>
-          </div>
+                    <i class="fa-solid fa-circle-check me-1"></i>Open
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-status="Hold">
+                    <i class="fa-solid fa-pause me-1"></i>Hold
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Budget</label>
+                <input type="text" name="budget" class="form-control" placeholder="e.g. 12-15 LPM">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Location</label>
+                <input type="text" name="r_location" class="form-control" placeholder="e.g. Mumbai">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Save Requirement</button>
+          </form>
+          <div id="msg" class="alert mt-3 d-none"></div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Budget</label>
-          <input type="text" name="budget" class="form-control" placeholder="e.g. 12-15 LPM">
-        </div>
-      </div>
-      <button type="submit" class="btn btn-primary mt-3">Save Requirement</button>
-    </form>
-    <div id="msg" class="alert mt-3 d-none"></div>
-  </div>
-</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
-<script>
-(async()=>{
-  const res=await fetch('/api/clients');
-  const clients=await res.json();
-  const sel=document.getElementById('clientSel');
-  sel.innerHTML='<option value="">Select client...</option>'+clients.map(c=>`<option value="${c.id}">${c.company_name}</option>`).join('');
-})();
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+      (async () => {
+        const res = await fetch('/api/clients');
+        const clients = await res.json();
+        const sel = document.getElementById('clientSel');
+        sel.innerHTML = '<option value="">Select client...</option>' + clients.map(c => `<option value="${c.id}">${c.company_name}</option>`).join('');
+      })();
 
-document.getElementById('clientSel').addEventListener('change',async e=>{
-  const sel=document.getElementById('pocSel');
-  if(!e.target.value){sel.innerHTML='';return;}
-  const res=await fetch(`/api/pocs/${e.target.value}`);
-  const pocs=await res.json();
-  sel.innerHTML='<option value="">Select POC (optional)...</option>'+pocs.map(p=>`<option value="${p.id}">${p.poc_name}</option>`).join('');
-});
+      document.getElementById('clientSel').addEventListener('change', async e => {
+        const sel = document.getElementById('pocSel');
+        if (!e.target.value) { sel.innerHTML = ''; return; }
+        const res = await fetch(`/api/pocs/${e.target.value}`);
+        const pocs = await res.json();
+        sel.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(p => `<option value="${p.id}">${p.poc_name}</option>`).join('');
+      });
 
-// Open/Hold status toggle: clicking a button colors it in and stores the
-// chosen value in the hidden #statusInput that actually gets submitted.
-document.querySelectorAll('#statusToggle button').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.getElementById('statusInput').value=btn.dataset.status;
-    document.querySelectorAll('#statusToggle button').forEach(b=>{
-      b.removeAttribute('style');
-      b.className='btn btn-sm btn-outline-secondary';
-    });
-    if(btn.dataset.status==='Open'){
-      btn.className='btn btn-sm';
-      btn.style.background='#dcfce7';btn.style.color='#15803d';btn.style.border='1px solid #86efac';btn.style.fontWeight='600';
-    }else{
-      btn.className='btn btn-sm';
-      btn.style.background='#f3f4f6';btn.style.color='#6b7280';btn.style.border='1px solid #d1d5db';btn.style.fontWeight='600';
-    }
-  });
-});
+      document.querySelectorAll('#statusToggle button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('statusInput').value = btn.dataset.status;
+          document.querySelectorAll('#statusToggle button').forEach(b => {
+            b.removeAttribute('style');
+            b.className = 'btn btn-sm btn-outline-secondary';
+          });
+          if (btn.dataset.status === 'Open') {
+            btn.className = 'btn btn-sm';
+            btn.style.background = '#dcfce7'; btn.style.color = '#15803d'; btn.style.border = '1px solid #86efac'; btn.style.fontWeight = '600';
+          } else {
+            btn.className = 'btn btn-sm';
+            btn.style.background = '#f3f4f6'; btn.style.color = '#6b7280'; btn.style.border = '1px solid #d1d5db'; btn.style.fontWeight = '600';
+          }
+        });
+      });
 
-document.getElementById('addReqForm').addEventListener('submit',async e=>{
-  e.preventDefault();
-  const fd=new FormData(e.target);
-  const payload=Object.fromEntries(fd.entries());
-  const res=await fetch('/api/requirements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const data=await res.json();
-  const box=document.getElementById('msg');
-  if(res.ok)window.location=`/requirements/${data.id}`;
-  else{box.classList.remove('d-none');box.classList.add('alert-danger');box.textContent=data.error||'Failed.';}
-});
-</script>
-</body></html>
+      document.getElementById('addReqForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = Object.fromEntries(fd.entries());
+        const res = await fetch('/api/requirements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        const box = document.getElementById('msg');
+        if (res.ok) window.location = `/requirements/${data.id}`;
+        else { box.classList.remove('d-none'); box.classList.add('alert-danger'); box.textContent = data.error || 'Failed.'; }
+      });
+    </script>
+</body>
+
+</html>

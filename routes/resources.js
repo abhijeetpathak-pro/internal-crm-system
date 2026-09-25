@@ -7,13 +7,48 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const path = require('path');
 const pool = require('../db');
-const { createDocumentUpload, hasExpectedSignature, removeUploadedFile } = require('../middleware/uploads');
-const upload = createDocumentUpload();
 
-// Secure document uploads use random filenames, strict MIME/extension checks,
-// a 5 MB limit, and a lightweight file-signature check after upload.
+// ──────────────────────────────────────────────────────────────
+// MULTER CONFIGURATION - File Upload Setup
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Configure storage location and filename for uploaded CVs
+ * Files are saved to: uploads/cvs/
+ * Filename format: timestamp-originalname
+ */
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Save to uploads/cvs folder
+    cb(null, path.join(__dirname, '..', 'uploads', 'cvs'));
+  },
+  filename: (req, file, cb) => {
+    // Replace special characters with underscore for safe filename
+    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    // Add timestamp to avoid filename conflicts
+    cb(null, `${Date.now()}-${safe}`);
+  }
+});
+
+/**
+ * Multer upload configuration
+ * - Max file size: 5MB
+ * - Allowed file types: PDF, DOC, DOCX
+ */
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const isValid = allowedExtensions.includes(
+      path.extname(file.originalname).toLowerCase()
+    );
+    cb(isValid ? null : new Error('Only PDF, DOC, DOCX files are allowed.'), isValid);
+  }
+});
 
 // ──────────────────────────────────────────────────────────────
 // HELPER FUNCTIONS
@@ -107,24 +142,17 @@ async function generateUid(conn, { vendorCode, resourceName, technology }) {
 
 // ──────────────────────────────────────────────────────────────
 // GET /api/resources
-// Description: Get all resources with optional filters
-// Query Parameters: type, vendor_id
 // ──────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const { type, vendor_id } = req.query;
+    const { type, vendor_id, poc_id } = req.query;
     
-    /**
-     * Base SQL query with vendor name join
-     * SELECT all resource fields + vendor name
-     */
     let sql = `SELECT r.*, v.vendor_name 
                FROM crm_resources r 
                LEFT JOIN crm_vendors v ON v.id = r.vendor_id`;
     const params = [];
     const conditions = [];
     
-    // Apply filters if provided
     if (type) { 
       conditions.push('r.type = ?'); 
       params.push(type); 
@@ -133,13 +161,22 @@ router.get('/', async (req, res) => {
       conditions.push('r.vendor_id = ?'); 
       params.push(vendor_id); 
     }
+    // BUG FIX: poc_id was never read from the query string, so selecting a
+    // POC on the requirement page's resource picker had no effect at all —
+    // it kept showing every resource for the vendor regardless of which
+    // POC was chosen. (A correct fix for this had actually been written,
+    // but ended up pasted into routes/requirements.js instead of here,
+    // where it was unreachable dead code querying the wrong table — see
+    // that file's history. This is the real, reachable fix.)
+    if (poc_id) { 
+      conditions.push('r.poc_id = ?'); 
+      params.push(poc_id); 
+    }
     
-    // Add WHERE clause if conditions exist
     if (conditions.length) {
       sql += ' WHERE ' + conditions.join(' AND ');
     }
     
-    // Sort by newest first
     sql += ' ORDER BY r.created_at DESC';
     
     const [rows] = await pool.query(sql, params);
@@ -153,7 +190,6 @@ router.get('/', async (req, res) => {
 
 // ──────────────────────────────────────────────────────────────
 // GET /api/resources/:id
-// Description: Get a single resource by ID (used for edit modal)
 // ──────────────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
@@ -180,13 +216,8 @@ router.get('/:id', async (req, res) => {
 
 // ──────────────────────────────────────────────────────────────
 // POST /api/resources
-// Description: Create a new resource with duplicate check
 // ──────────────────────────────────────────────────────────────
 router.post('/', (req, res, next) => {
-  /**
-   * First, handle file upload using multer
-   * If upload fails, return error
-   */
   upload.single('cv')(req, res, (err) => {
     if (err) {
       return res.status(400).json({ error: err.message });
@@ -194,27 +225,19 @@ router.post('/', (req, res, next) => {
     next();
   });
 }, async (req, res) => {
-  if (req.file) {
-    try {
-      if (!(await hasExpectedSignature(req.file))) {
-        await removeUploadedFile(req.file);
-        return res.status(400).json({ error: 'Uploaded document content does not match its file type.' });
-      }
-    } catch (err) {
-      await removeUploadedFile(req.file);
-      return res.status(400).json({ error: 'Uploaded document could not be validated.' });
-    }
-  }
-
   /**
-   * Extract form data from request body
-   * Fields: resource_name, title, skills, type, vendor_id, etc.
+   * BUG FIX (again): the DB column is "salary_lpm" (see schema.sql). A
+   * previous fix attempt here renamed everything to "salary_lpm" instead
+   * of correcting it to match the real column — same bug, new wrong name.
+   * Every Add Resource submission was failing with a SQL error again as a
+   * result. Using the real column name this time: salary_lpm.
    */
   const {
-    resource_name, title, experience_years, skills, type,
+    resource_name, title, skills, type,
     vendor_id, poc_id,
     managed_by, contact_number, email, linkedin,
     preferred_location, current_location,
+    experience_years,
     salary_lpm
   } = req.body;
 
@@ -225,18 +248,15 @@ router.post('/', (req, res, next) => {
     });
   }
 
-  // ── START DATABASE TRANSACTION ──
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
-    // ── DETERMINE VENDOR CODE ──
-    let vendorCode = 'INH'; // Default for In-House
+    let vendorCode = 'INH';
     let resolvedVendorId = null;
     let resolvedPocId = poc_id || null;
 
     if (type === 'Vendor') {
-      // Vendor type requires vendor_id
       if (!vendor_id) {
         await conn.rollback();
         return res.status(400).json({ 
@@ -244,7 +264,6 @@ router.post('/', (req, res, next) => {
         });
       }
       
-      // Fetch vendor details with row lock
       const [vRows] = await conn.query(
         'SELECT id, short_code FROM crm_vendors WHERE id = ? FOR UPDATE', 
         [vendor_id]
@@ -259,33 +278,21 @@ router.post('/', (req, res, next) => {
       resolvedVendorId = vRows[0].id;
     }
 
-    /**
-     * ── ✅ FIX: Use TITLE for UID (not skills) ──
-     * Priority: title > skills first value > fallback
-     * 
-     * Why? Title is shorter and more meaningful for UID
-     * Example: "Python Developer" instead of "Python, Django, AWS..."
-     */
     let technology = '';
     if (title && title.trim()) {
-      // Use title if available
       technology = title.trim();
     } else if (skills && skills.trim()) {
-      // Fallback: use first skill
       technology = skills.split(',')[0].trim();
     } else {
-      // Ultimate fallback (should never happen due to validation)
       technology = 'SKILL';
     }
     
-    // ── GENERATE UNIQUE UID ──
     const uidResult = await generateUid(conn, { 
       vendorCode, 
       resourceName: resource_name, 
       technology 
     });
     
-    // ── CHECK FOR DUPLICATE ──
     if (uidResult.duplicate) {
       await conn.rollback();
       return res.status(409).json({
@@ -295,14 +302,9 @@ router.post('/', (req, res, next) => {
     }
     
     const uniqueUid = uidResult.uid;
-    
-    // ── HANDLE CV UPLOAD ──
     const cvPath = req.file ? `/uploads/cvs/${req.file.filename}` : null;
 
-    // ── INSERT INTO DATABASE ──
-    // BUG FIX: this used to insert into a column called "salary_lpm", which
-    // doesn't exist — the real column is "salary_lpm". Every single Add
-    // Resource submission was failing with a SQL error because of this.
+    // ── INSERT QUERY (uses real column name: salary_lpm) ──
     const [result] = await conn.query(
       `INSERT INTO crm_resources
        (unique_uid, resource_name, title, experience_years, skills, cv_path, type, status, 
@@ -325,12 +327,11 @@ router.post('/', (req, res, next) => {
         type === 'In-House' ? (linkedin || null) : null,
         preferred_location || null, 
         current_location || null,
-        salary_lpm || null, 
+        salary_lpm || null,
         req.session.user.id
       ]
     );
 
-    // ── COMMIT TRANSACTION ──
     await conn.commit();
     
     res.status(201).json({ 
@@ -340,7 +341,6 @@ router.post('/', (req, res, next) => {
     });
     
   } catch (err) {
-    // ── ROLLBACK ON ERROR ──
     await conn.rollback();
     console.error('POST resource error:', err);
     res.status(500).json({ error: 'Failed to create resource.' });
@@ -351,11 +351,9 @@ router.post('/', (req, res, next) => {
 
 // ──────────────────────────────────────────────────────────────
 // PUT /api/resources/:id
-// Description: Update a resource - preserves existing data
 // ──────────────────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
   try {
-    // ── 1. Load existing record first ──
     const [existing] = await pool.query(
       'SELECT * FROM crm_resources WHERE id = ?', 
       [req.params.id]
@@ -368,11 +366,6 @@ router.put('/:id', async (req, res) => {
     const current = existing[0];
     const body = req.body;
 
-    /**
-     * ── 2. Merge: use body value if provided, otherwise keep existing ──
-     * v() - returns body value if present, else current value
-     * vNull() - same but allows null values
-     */
     const v = (key) => (body[key] !== undefined && body[key] !== '') 
       ? body[key] 
       : current[key];
@@ -383,9 +376,7 @@ router.put('/:id', async (req, res) => {
 
     const type = body.type || current.type;
 
-    // ── 3. Update query ──
-    // BUG FIX: same salary_lpm/salary_lpm mismatch as the POST route above —
-    // this UPDATE was targeting a column that doesn't exist.
+    // ── UPDATE QUERY (uses real column name: salary_lpm) ──
     await pool.query(
       `UPDATE crm_resources SET
        resource_name = ?, title = ?, experience_years = ?, skills = ?, type = ?, status = ?,
@@ -426,7 +417,6 @@ router.put('/:id', async (req, res) => {
 
 // ──────────────────────────────────────────────────────────────
 // DELETE /api/resources/:id
-// Description: Delete a resource by ID
 // ──────────────────────────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {

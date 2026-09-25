@@ -35,3 +35,5 @@ SET @task_reminder_sql := IF(@task_reminder_column_exists = 0,
 PREPARE task_reminder_stmt FROM @task_reminder_sql;
 EXECUTE task_reminder_stmt;
 DEALLOCATE PREPARE task_reminder_stmt;
+
+ALTER TABLE crm_requirement_resources ADD COLUMN is_shared TINYINT(1) DEFAULT 0;

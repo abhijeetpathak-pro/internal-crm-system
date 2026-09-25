@@ -15,46 +15,38 @@
     .stage-btn-reject{background:#fff;color:#b91c1c;border:1px solid #fca5a5}
     .stage-btn-active-reject{background:#b91c1c;color:#fff;border:1px solid #b91c1c}
 
-    /* ── JD SEE MORE ── */
     .jd-container {
-      max-height: 100px;
-      overflow: hidden;
-      transition: max-height 0.3s ease;
-      white-space: pre-wrap;
-      position: relative;
+      max-height: 100px; overflow: hidden; transition: max-height 0.3s ease; white-space: pre-wrap; position: relative;
     }
-    .jd-container.expanded {
-      max-height: none;
-    }
+    .jd-container.expanded { max-height: none; }
     .jd-container::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 30px;
-      background: linear-gradient(transparent, #fff);
-      pointer-events: none;
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, #fff); pointer-events: none;
     }
-    .jd-container.expanded::after {
-      display: none;
-    }
-    .jd-toggle-btn {
-      cursor: pointer;
-      color: #C0392B;
-      font-weight: 600;
-      font-size: 0.85rem;
-      background: none;
-      border: none;
-      padding: 0;
-    }
-    .jd-toggle-btn:hover {
-      text-decoration: underline;
-    }
+    .jd-container.expanded::after { display: none; }
+    .jd-toggle-btn { cursor: pointer; color: #C0392B; font-weight: 600; font-size: 0.85rem; background: none; border: none; padding: 0; }
+    .jd-toggle-btn:hover { text-decoration: underline; }
 
-    /* ── EXPERIENCE & SALARY FIELDS ── */
     .field-label { font-weight: 600; font-size: 0.75rem; color: #6B7280; }
     .field-value { font-weight: 600; font-size: 0.9rem; color: #1A1A1A; }
+    
+    .share-btn-active {
+      background: #dcfce7 !important;
+      color: #166534 !important;
+      border: 1px solid #86efac !important;
+    }
+    .share-btn-inactive {
+      background: #fef2f2 !important;
+      color: #b91c1c !important;
+      border: 1px solid #fca5a5 !important;
+    }
+    .share-btn-default {
+      background: #fff !important;
+      color: #6B7280 !important;
+      border: 1px solid #d1d5db !important;
+    }
+    
+    .action-btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid #dee2e6; background: #fff; display: inline-flex !important; align-items: center; justify-content: center; color: #15803d; transition: all 0.15s; cursor: pointer; }
+    .action-btn:hover { background: #f0fdf4; border-color: #86efac; }
   </style>
 </head>
 <body>
@@ -62,6 +54,7 @@
   <div class="main-content">
     <%- include('../partials/topbar',{user}) %>
 
+    <!-- ==================== HEADER ==================== -->
     <div class="d-flex justify-content-between align-items-start mb-3">
       <div>
         <h4 class="fw-semibold mb-1"><%= requirement.title %></h4>
@@ -72,21 +65,74 @@
           </span>
         <% } %>
       </div>
-      <div class="btn-group btn-group-sm" id="stToggle" data-id="<%= requirement.id %>">
-        <button class="btn" data-st="Open" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Open</button>
-        <button class="btn" data-st="Hold" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db">Hold</button>
-        <button class="btn" data-st="Closed" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">Closed</button>
+      
+      <div class="d-flex align-items-center gap-2">
+        <!-- WhatsApp Share Button (Fixed using data attributes to safely pass multi-line JD) -->
+        <button type="button" class="action-btn share-whatsapp-btn" 
+                data-id="<%= requirement.id %>" 
+                data-title="<%= requirement.title %>" 
+                data-company="<%= requirement.company_name || '' %>" 
+                data-location="<%= requirement.location || '' %>" 
+                data-budget="<%= requirement.budget || '' %>" 
+                data-status="<%= requirement.status || 'Open' %>" 
+                data-jd="<%= encodeURIComponent(requirement.jd || '') %>" 
+                title="Share on WhatsApp">
+          <i class="fa-brands fa-whatsapp fs-6"></i>
+        </button>
+
+        <!-- Share Toggle -->
+        <div class="btn-group btn-group-sm" id="shareToggleBtn" role="group">
+          <button type="button" 
+                  class="btn <%= requirement.is_shared == 1 ? 'share-btn-active' : 'share-btn-default' %>" 
+                  id="shareBtn"
+                  data-share="1"
+                  onclick="toggleShare(event, 1)"
+                  style="font-size:0.75rem; min-width:70px;">
+            <i class="fa-solid fa-share-nodes me-1"></i>Shared
+          </button>
+          <button type="button" 
+                  class="btn <%= requirement.is_shared != 1 ? 'share-btn-inactive' : 'share-btn-default' %>" 
+                  id="notShareBtn"
+                  data-share="0"
+                  onclick="toggleShare(event, 0)"
+                  style="font-size:0.75rem; min-width:85px;">
+            <i class="fa-solid fa-ban me-1"></i>Not Shared
+          </button>
+        </div>
+        
+        <div class="btn-group btn-group-sm" id="stToggle" data-id="<%= requirement.id %>">
+          <button class="btn" data-st="Open" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Open</button>
+          <button class="btn" data-st="Hold" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db">Hold</button>
+          <button class="btn" data-st="Closed" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">Closed</button>
+        </div>
       </div>
     </div>
 
+    <!-- ==================== REQUIREMENT DETAILS ==================== -->
     <div class="card stat-card p-3 mb-3">
       <div class="row g-2 small">
-        <div class="col-md-4"><span class="text-secondary">Client:</span> <strong><%= requirement.company_name||'—' %></strong></div>
-        <div class="col-md-4"><span class="text-secondary">POC:</span> <%= requirement.poc_name||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Budget:</span> <%= requirement.budget||'—' %></div>
+        <h4 class="fw-semibold"><span class="badge bg-primary me-2">#<%= requirement.id %></span></h4>
+        <div class="col-md-3"><span class="text-secondary">Client:</span> <strong><%= requirement.company_name || '—' %></strong></div>
+        <div class="col-md-3"><span class="text-secondary">POC:</span> <%= requirement.poc_name || '—' %></div>
+        <div class="col-md-3"><span class="text-secondary">Budget:</span> <%= requirement.budget || '—' %></div>
+        <div class="col-md-3"><span class="text-secondary">Location:</span> <strong><%= requirement.location || '—' %></strong></div>
       </div>
       
-      <!-- ─── JD SECTION WITH SEE MORE ─── -->
+      <div class="row g-2 small mt-2">
+        <div class="col-md-12">
+          <span class="text-secondary">Share Status:</span>
+          <% if(requirement.is_shared == 1) { %>
+            <span class="badge" style="background:#dcfce7;color:#166534;border:1px solid #86efac">
+              <i class="fa-solid fa-circle-check me-1"></i>Shared
+            </span>
+          <% } else { %>
+            <span class="badge" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5">
+              <i class="fa-regular fa-circle me-1"></i>Not Shared
+            </span>
+          <% } %>
+        </div>
+      </div>
+      
       <% if(requirement.jd){ %>
       <hr>
       <div class="small text-secondary mb-1">Job Description</div>
@@ -99,14 +145,14 @@
       <% } %>
     </div>
 
+    <!-- ==================== MAIN CONTENT ==================== -->
     <div class="row g-3">
       <div class="col-lg-8">
-
-        <!-- ─── Dynamic Resource Workflow ─── -->
+        
+        <!-- MAP RESOURCE SECTION -->
         <div class="card stat-card p-3 mb-3">
           <div class="fw-semibold mb-3"><i class="fa-solid fa-link me-2 text-danger"></i>Map Resource to this Requirement</div>
 
-          <!-- Tab selector -->
           <div class="d-flex gap-2 mb-3">
             <button class="workflow-tab active" id="tabDB" onclick="switchTab('db')">
               <i class="fa-solid fa-database me-1"></i>Select From Database
@@ -116,7 +162,6 @@
             </button>
           </div>
 
-          <!-- Case A: Select from Database -->
           <div id="dbSection">
             <div class="row g-2 mb-2">
               <div class="col-md-4">
@@ -144,8 +189,6 @@
               <select id="dbResource" class="form-select form-select-sm">
                 <option value="">Loading...</option>
               </select>
-              <button type="button" id="matchResourceBtn" class="btn btn-outline-primary btn-sm mt-2" onclick="matchSelectedResource()"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Match with Requirement</button>
-              <div id="matchResult" class="small mt-2 d-none"></div>
             </div>
             <div class="mb-2">
               <label class="form-label small">Note *</label>
@@ -156,7 +199,6 @@
             </button>
           </div>
 
-          <!-- Case B: Add New Resource inline -->
           <div id="newResForm">
             <form id="newResInlineForm" enctype="multipart/form-data">
               <div class="row g-2">
@@ -164,14 +206,12 @@
                 <div class="col-md-6"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" placeholder="e.g. Backend Developer"></div>
                 <div class="col-md-8"><label class="form-label small">Skills * (first = primary tech)</label><input type="text" name="skills" class="form-control form-control-sm" placeholder="Python, Django, AWS" required></div>
                 
-                <!-- ✅ FIXED: Experience Years added -->
                 <div class="col-md-4"><label class="form-label small">Experience (yrs)</label>
                   <input type="number" name="experience_years" class="form-control form-control-sm" step="0.5" min="0" placeholder="e.g. 5">
                 </div>
                 
-                <!-- ✅ Salary lpm -->
-                <div class="col-md-4"><label class="form-label small">Salary (lpm)</label>
-                  <input type="number" name="salary_lpm" class="form-control form-control-sm" step="0.1" placeholder="e.g. 12.5">
+                <div class="col-md-4"><label class="form-label small">Salary (LPA)</label>
+                  <input type="number" name="salary_lpa" class="form-control form-control-sm" step="0.1" placeholder="e.g. 12.5">
                 </div>
                 
                 <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" name="current_location" class="form-control form-control-sm"></div>
@@ -188,7 +228,6 @@
                   <input type="file" name="cv" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
                 </div>
 
-                <!-- In-House fields -->
                 <div id="nrInhouse" class="col-12 row g-2">
                   <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text" name="managed_by" class="form-control form-control-sm"></div>
                   <div class="col-md-4"><label class="form-label small">Phone</label><input type="text" name="contact_number" class="form-control form-control-sm"></div>
@@ -196,7 +235,6 @@
                   <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" name="linkedin" class="form-control form-control-sm"></div>
                 </div>
 
-                <!-- Vendor fields -->
                 <div id="nrVendor" class="col-12 row g-2 d-none">
                   <div class="col-md-6">
                     <label class="form-label small">Vendor</label>
@@ -223,7 +261,7 @@
           <div id="mapMsg" class="alert mt-2 d-none py-2 small"></div>
         </div>
 
-        <!-- Activity Log -->
+        <!-- ACTIVITY LOG -->
         <div class="card stat-card p-3">
           <div class="fw-semibold mb-3">Activity / Decision Log</div>
           <form id="actForm" class="mb-3">
@@ -250,7 +288,7 @@
         </div>
       </div>
 
-      <!-- Profiles Sent sidebar panel -->
+      <!-- RIGHT COLUMN - Profiles Sent -->
       <div class="col-lg-4">
         <div class="card stat-card p-3">
           <div class="fw-semibold mb-2">
@@ -272,7 +310,7 @@
                   <i class="fa-solid fa-chevron-right text-secondary small"></i>
                 </div>
                 <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-resource-id="<%= rs.id %>">
-                  <% ['L1','L2','L3'].forEach(function(st){ %>
+                  <% ['SR','L1','L2'].forEach(function(st){ %>
                   <button type="button" class="btn btn-sm stage-btn <%= rs.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>" data-stage="<%= st %>"><%= st %> <i class="fa-solid fa-forward"></i></button>
                   <% }) %>
                   <button type="button" class="btn btn-sm stage-btn <%= rs.stage==='Select'?'stage-btn-active-select':'stage-btn-select' %>" data-stage="Select">Select</button>
@@ -284,16 +322,39 @@
           <% } %>
         </div>
       </div>
+      
     </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  
   <script>
-    const REQ_ID = <%- JSON.stringify(requirement.id) %>;
-    const REQ_TITLE = <%- JSON.stringify(requirement.title).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026') %>;
-    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    // WhatsApp Share Event Listener (Secure data-attributes decoding)
+    document.addEventListener('click', function(event) {
+      const shareBtn = event.target.closest('.share-whatsapp-btn');
+      if (shareBtn) {
+        event.preventDefault();
+        
+        const id = shareBtn.getAttribute('data-id');
+        const title = shareBtn.getAttribute('data-title');
+        const company = shareBtn.getAttribute('data-company');
+        const location = shareBtn.getAttribute('data-location');
+        const budget = shareBtn.getAttribute('data-budget');
+        const status = shareBtn.getAttribute('data-status');
+        const jd = decodeURIComponent(shareBtn.getAttribute('data-jd') || '');
 
-    // ── JD TOGGLE ──
+        const text = `🚀 *New Requirement Opening*\n\n` +
+                     `*Job ID:* #${id}\n` +
+                     `*Title:* ${title}\n` +
+                     `*Location:* ${location || '—'}\n` +
+                     `*Budget:* ${budget || '—'}\n` +
+                     `*Status:* ${status || 'Open'}\n\n` +
+                     `📋 *Job Description:*\n${jd}`;
+        
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+      }
+    });
+
     function toggleJD() {
       const container = document.getElementById('jdContainer');
       const btn = document.getElementById('jdToggle');
@@ -306,70 +367,139 @@
       }
     }
 
-    // Status toggle
+    async function toggleShare(event, shareValue) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (shareValue === CURRENT_SHARE_STATUS) return;
+      
+      const shareBtn = document.getElementById('shareBtn');
+      const notShareBtn = document.getElementById('notShareBtn');
+      shareBtn.disabled = true;
+      notShareBtn.disabled = true;
+      shareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
+      notShareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
+      
+      try {
+        const response = await fetch('/api/requirements/' + REQ_ID + '/toggle-share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_shared: shareValue })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setTimeout(() => { location.reload(); }, 500);
+        } else {
+          alert(data.error || 'Failed to update share status.');
+          shareBtn.disabled = false;
+          notShareBtn.disabled = false;
+          shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes me-1"></i>Shared';
+          notShareBtn.innerHTML = '<i class="fa-solid fa-ban me-1"></i>Not Shared';
+        }
+      } catch (error) {
+        alert('Network error. Please try again.');
+        shareBtn.disabled = false;
+        notShareBtn.disabled = false;
+        shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes me-1"></i>Shared';
+        notShareBtn.innerHTML = '<i class="fa-solid fa-ban me-1"></i>Not Shared';
+      }
+    }
+
     document.querySelectorAll('#stToggle button').forEach(function(btn) {
       btn.addEventListener('click', async function() {
         const chosenStatus = this.dataset.st;
         if (chosenStatus === 'Closed') {
-          const sure = confirm('Closing this requirement will permanently delete it, its resource pipeline, and its activity log. This cannot be undone. Continue?');
+          const sure = confirm('⚠️ Closing this requirement will permanently delete it, its resource pipeline, and its activity log. This cannot be undone. Continue?');
           if (!sure) return;
         }
-        const res = await fetch('/api/requirements/' + REQ_ID + '/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: chosenStatus })
-        });
-        const data = await res.json();
-        if (res.ok && data.deleted) {
-          window.location = '/requirements';
-        } else if (res.ok) {
-          location.reload();
-        } else {
-          alert(data.error || 'Failed to update status.');
+        
+        const allBtns = document.querySelectorAll('#stToggle button');
+        allBtns.forEach(b => b.disabled = true);
+        
+        try {
+          const res = await fetch('/api/requirements/' + REQ_ID + '/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: chosenStatus })
+          });
+          const data = await res.json();
+          if (res.ok && data.deleted) {
+            window.location = '/requirements';
+          } else if (res.ok) {
+            location.reload();
+          } else {
+            alert(data.error || 'Failed to update status.');
+            allBtns.forEach(b => b.disabled = false);
+          }
+        } catch (error) {
+          alert('Network error. Please try again.');
+          allBtns.forEach(b => b.disabled = false);
         }
       });
     });
 
-    // Pipeline stage buttons
     document.querySelectorAll('.stage-btns').forEach(function(group) {
       const resourceId = group.dataset.resourceId;
       group.querySelectorAll('.stage-btn').forEach(function(btn) {
         btn.addEventListener('click', async function(e) {
           e.stopPropagation();
           const stage = this.dataset.stage;
-          const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId + '/stage', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: stage })
-          });
-          if (res.ok) {
-            location.reload();
-          } else {
-            const data = await res.json();
-            alert(data.error || 'Failed to update stage.');
+          const allBtns = group.querySelectorAll('.stage-btn');
+          allBtns.forEach(b => b.disabled = true);
+          
+          try {
+            const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId + '/stage', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ stage: stage })
+            });
+            if (res.ok) {
+              location.reload();
+            } else {
+              const data = await res.json();
+              alert(data.error || 'Failed to update stage.');
+              allBtns.forEach(b => b.disabled = false);
+            }
+          } catch (error) {
+            alert('Network error. Please try again.');
+            allBtns.forEach(b => b.disabled = false);
           }
         });
       });
     });
 
-    // Activity log
     document.getElementById('actForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const note = document.getElementById('actNote').value.trim();
       if (!note) return;
-      const res = await fetch('/api/activity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entity_type: 'requirement',
-          entity_id: REQ_ID,
-          note: note
-        })
-      });
-      if (res.ok) location.reload();
+      
+      const btn = this.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+      
+      try {
+        const res = await fetch('/api/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entity_type: 'requirement',
+            entity_id: REQ_ID,
+            note: note
+          })
+        });
+        if (res.ok) location.reload();
+        else {
+          alert('Failed to add update.');
+          btn.disabled = false;
+          btn.innerHTML = 'Add Update';
+        }
+      } catch (error) {
+        alert('Network error. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = 'Add Update';
+      }
     });
 
-    // Tab switching
     function switchTab(tab) {
       var isDb = tab === 'db';
       document.getElementById('tabDB').className = 'workflow-tab' + (isDb ? ' active' : '');
@@ -379,7 +509,6 @@
       if (!isDb) loadVendorsForNew();
     }
 
-    // Case A: Database selection
     async function loadDbResources() {
       var type = document.getElementById('dbType').value;
       var vendorId = document.getElementById('dbVendor').value;
@@ -394,7 +523,7 @@
           var vRes = await fetch('/api/vendors');
           var vendors = await vRes.json();
           vSelect.innerHTML = '<option value="">All vendors</option>' + vendors.map(function(v) {
-            return '<option value="' + Number.parseInt(v.id, 10) + '">' + escapeHtml(v.vendor_name) + '</option>';
+            return '<option value="' + v.id + '">' + v.vendor_name + '</option>';
           }).join('');
         }
       } else {
@@ -404,12 +533,13 @@
 
       var url = '/api/resources?type=' + type;
       if (vendorId) url += '&vendor_id=' + vendorId;
+      if (pocId) url += '&poc_id=' + pocId;
       var res = await fetch(url);
       var resources = await res.json();
       var rSelect = document.getElementById('dbResource');
       if (resources.length) {
         rSelect.innerHTML = '<option value="">Select resource...</option>' + resources.map(function(r) {
-          return '<option value="' + Number.parseInt(r.id, 10) + '">' + escapeHtml(r.resource_name) + ' — ' + escapeHtml(r.unique_uid) + '</option>';
+          return '<option value="' + r.id + '">' + r.resource_name + ' — ' + r.unique_uid + '</option>';
         }).join('');
       } else {
         rSelect.innerHTML = '<option value="">No resources found</option>';
@@ -424,7 +554,7 @@
         var pocs = await res.json();
         var pSelect = document.getElementById('dbPoc');
         pSelect.innerHTML = '<option value="">All POCs</option>' + pocs.map(function(p) {
-          return '<option value="' + Number.parseInt(p.id, 10) + '">' + escapeHtml(p.poc_name) + '</option>';
+          return '<option value="' + p.id + '">' + p.poc_name + '</option>';
         }).join('');
         pWrap.classList.remove('d-none');
       } else {
@@ -433,23 +563,6 @@
       loadDbResources();
     }
 
-    async function matchSelectedResource() {
-      var resourceId = document.getElementById('dbResource').value;
-      var resultBox = document.getElementById('matchResult');
-      var button = document.getElementById('matchResourceBtn');
-      if (!resourceId) { resultBox.className='small mt-2 text-danger'; resultBox.textContent='Select a resource first.'; return; }
-      button.disabled=true; button.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Matching...';
-      try {
-        var res = await fetch('/api/ai/match', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ requirement_id:REQ_ID, resource_id:resourceId }) });
-        var payload = await res.json(); if (!res.ok) throw new Error(payload.error || 'Unable to calculate match.');
-        var data = payload.data || {}; var score = Number.parseInt(data.score,10) || 0;
-        resultBox.className='alert alert-info mt-2 py-2 small';
-        resultBox.innerHTML='<strong>'+escapeHtml(data.recommendation || 'Match')+' — '+score+'/100</strong><br>'+escapeHtml(data.explanation || '')+(data.matched_skills?.length ? '<br><span class="text-success">Matched: '+escapeHtml(data.matched_skills.join(', '))+'</span>' : '')+(data.missing_skills?.length ? '<br><span class="text-danger">Missing: '+escapeHtml(data.missing_skills.join(', '))+'</span>' : '');
-      } catch (err) { resultBox.className='small mt-2 text-danger'; resultBox.textContent=err.message; }
-      finally { button.disabled=false; button.innerHTML='<i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Match with Requirement'; }
-    }
-
-    // Case A: Database selection
     async function submitDbResource() {
       var resourceId = document.getElementById('dbResource').value;
       var note = document.getElementById('dbNote').value.trim();
@@ -459,27 +572,40 @@
         msg.textContent = 'Please select a resource and add a note.';
         return;
       }
-      var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resource_id: resourceId,
-          note: note,
-          req_title: REQ_TITLE
-        })
-      });
-      var data = await res.json();
-      if (res.ok) {
-        msg.className = 'alert alert-success mt-2 py-2 small';
-        msg.textContent = 'Resource mapped successfully! Status updated to Mapped.';
-        setTimeout(function() { location.reload(); }, 1200);
-      } else {
+      
+      const btn = document.querySelector('#dbSection .btn-primary');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Mapping...';
+      
+      try {
+        var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resource_id: resourceId,
+            note: note,
+            req_title: REQ_TITLE
+          })
+        });
+        var data = await res.json();
+        if (res.ok) {
+          msg.className = 'alert alert-success mt-2 py-2 small';
+          msg.textContent = '✅ Resource mapped successfully!';
+          setTimeout(function() { location.reload(); }, 1200);
+        } else {
+          msg.className = 'alert alert-danger mt-2 py-2 small';
+          msg.textContent = data.error || 'Failed to map resource.';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Map Resource';
+        }
+      } catch (error) {
         msg.className = 'alert alert-danger mt-2 py-2 small';
-        msg.textContent = data.error || 'Failed to map resource.';
+        msg.textContent = 'Network error. Please try again.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Map Resource';
       }
     }
 
-    // Case B: New Resource inline
     function toggleNrFields() {
       var isVendor = document.getElementById('nrType').value === 'Vendor';
       document.getElementById('nrInhouse').classList.toggle('d-none', isVendor);
@@ -492,7 +618,7 @@
       var res = await fetch('/api/vendors');
       var vendors = await res.json();
       vSelect.innerHTML = '<option value="">Select vendor...</option>' + vendors.map(function(v) {
-        return '<option value="' + Number.parseInt(v.id, 10) + '">' + escapeHtml(v.vendor_name) + ' (' + escapeHtml(v.short_code) + ')</option>';
+        return '<option value="' + v.id + '">' + v.vendor_name + ' (' + v.short_code + ')</option>';
       }).join('');
     }
 
@@ -503,7 +629,7 @@
       var pocs = await res.json();
       var pSelect = document.getElementById('nrPocSel');
       pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(function(p) {
-        return '<option value="' + Number.parseInt(p.id, 10) + '">' + escapeHtml(p.poc_name) + '</option>';
+        return '<option value="' + p.id + '">' + p.poc_name + '</option>';
       }).join('');
     }
 
@@ -512,29 +638,39 @@
       var msg = document.getElementById('nrMsg');
       var fd = new FormData(e.target);
       fd.append('req_title', REQ_TITLE);
-      var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
-        method: 'POST',
-        body: fd
-      });
-      var data = await res.json();
-      if (res.ok) {
-        msg.className = 'alert alert-success mt-2 py-1 small';
-        msg.textContent = 'Resource created & mapped! Status set to Mapped.';
-        setTimeout(function() { location.reload(); }, 1200);
-      } else {
+      
+      const btn = this.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Creating...';
+      
+      try {
+        var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
+          method: 'POST',
+          body: fd
+        });
+        var data = await res.json();
+        if (res.ok) {
+          msg.className = 'alert alert-success mt-2 py-1 small';
+          msg.textContent = '✅ Resource created & mapped!';
+          setTimeout(function() { location.reload(); }, 1200);
+        } else {
+          msg.className = 'alert alert-danger mt-2 py-1 small';
+          msg.textContent = data.error || 'Failed to create resource.';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Create & Map Resource';
+        }
+      } catch (error) {
         msg.className = 'alert alert-danger mt-2 py-1 small';
-        msg.textContent = data.error || 'Failed.';
+        msg.textContent = 'Network error. Please try again.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Create & Map Resource';
       }
     });
 
-    // Init
     loadDbResources();
-
-    document.addEventListener('DOMContentLoaded', function() {
-      document.querySelectorAll('.dropdown-toggle').forEach(function(el) {
-        new bootstrap.Dropdown(el);
-      });
-    });
+    if (document.getElementById('nrType').value === 'Vendor') {
+      toggleNrFields();
+    }
   </script>
 </body>
 </html>

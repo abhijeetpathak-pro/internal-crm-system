@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Yeh meta tags WhatsApp preview ke liye hain -->
+  <meta property="og:title" content="<%= requirement.title %>">
+  <meta property="og:description" content="Company: <%= requirement.company_name || 'N/A' %> | Location: <%= requirement.location || 'Remote' %> | Budget: <%= requirement.budget || 'Negotiable' %>">
+  <title><%= requirement.title %> — Requirement Details</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light py-5">
+  <div class="container" style="max-width: 600px;">
+    <div class="card shadow-sm border-0 p-4">
+      <span class="badge bg-primary mb-2 align-self-start">Job ID: #<%= requirement.id %></span>
+      <h3 class="fw-bold mb-3"><%= requirement.title %></h3>
+      <hr>
+      <p><strong>Company:</strong> <%= requirement.company_name || '—' %></p>
+      <p><strong>Location:</strong> <%= requirement.location || '—' %></p>
+      <p><strong>Budget:</strong> <%= requirement.budget || '—' %></p>
+      <p><strong>Status:</strong> <span class="badge bg-success"><%= requirement.status %></span></p>
+      <hr>
+      <h6 class="fw-semibold">Job Description:</h6>
+      <p class="text-secondary" style="white-space: pre-wrap;"><%= requirement.jd || 'No description provided.' %></p>
+    </div>
+  </div>
+</body>
+</html>

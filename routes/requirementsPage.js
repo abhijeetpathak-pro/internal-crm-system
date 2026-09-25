@@ -211,7 +211,7 @@ router.get('/api/pocs-by-client/:clientId', async (req, res) => {
 router.put('/api/requirements/:id', async (req, res) => {
   try {
     const reqId = req.params.id;
-    const { title, status, budget, client_id, poc_id, jd } = req.body;
+    const { title, status, budget, client_id, poc_id, jd, location, r_location } = req.body;
 
     const isAdmin = req.session.user.role === 'admin' || req.session.user.role === 'super_admin';
     const [existing] = await pool.query('SELECT created_by FROM crm_requirements WHERE id = ?', [reqId]);
@@ -228,13 +228,14 @@ router.put('/api/requirements/:id', async (req, res) => {
     const safePocId = poc_id && poc_id !== '' ? parseInt(poc_id) : null;
     const safeJd = jd || '';
     const safeBudget = budget || '';
+    const safeLocation = (location !== undefined ? location : r_location) || null;
 
-    // Exact columns: title, status, budget, client_id, poc_id, jd
+    // Exact columns: title, status, budget, client_id, poc_id, jd, location
     await pool.query(
       `UPDATE crm_requirements 
-       SET title = ?, status = ?, budget = ?, client_id = ?, poc_id = ?, jd = ? 
+       SET title = ?, status = ?, budget = ?, client_id = ?, poc_id = ?, jd = ?, location = ? 
        WHERE id = ?`,
-      [title.trim(), status, safeBudget, safeClientId, safePocId, safeJd, reqId]
+      [title.trim(), status, safeBudget, safeClientId, safePocId, safeJd, safeLocation, reqId]
     );
 
     res.json({ success: true, message: 'Requirement updated successfully' });

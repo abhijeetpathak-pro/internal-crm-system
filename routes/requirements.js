@@ -103,13 +103,14 @@ router.get('/:id', async (req, res) => {
 
 // ─── POST create requirement ──────────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const { client_id, poc_id, title, jd, status, budget } = req.body;
+  const { client_id, poc_id, title, jd, status, budget, location, r_location } = req.body;
   if (!client_id || !title) return res.status(400).json({ error: 'client_id and title are required.' });
   const finalStatus = status && REQ_STATUSES.includes(status) ? status : 'Open';
+  const finalLocation = (location !== undefined ? location : r_location) || null;
   try {
     const [r] = await pool.query(
-      'INSERT INTO crm_requirements (client_id,poc_id,title,jd,status,budget,created_by) VALUES (?,?,?,?,?,?,?)',
-      [client_id, poc_id || null, title, jd || null, finalStatus, budget || null, req.session.user.id]
+      'INSERT INTO crm_requirements (client_id,poc_id,title,jd,status,budget,location,created_by) VALUES (?,?,?,?,?,?,?,?)',
+      [client_id, poc_id || null, title, jd || null, finalStatus, budget || null, finalLocation, req.session.user.id]
     );
     res.status(201).json({ id: r.insertId });
   } catch (err) {
@@ -119,9 +120,10 @@ router.post('/', async (req, res) => {
 
 // ─── PUT update requirement ──────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
-  const { client_id, poc_id, title, jd, status, budget } = req.body;
+  const { client_id, poc_id, title, jd, status, budget, location, r_location } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required.' });
   const finalStatus = status && REQ_STATUSES.includes(status) ? status : 'Open';
+  const finalLocation = (location !== undefined ? location : r_location) || null;
   try {
     const user = req.session.user;
     if (user && user.role === 'emp') {
@@ -130,8 +132,8 @@ router.put('/:id', async (req, res) => {
       if (owner[0].created_by !== user.id) return res.status(403).json({ error: 'Permission denied.' });
     }
     await pool.query(
-      'UPDATE crm_requirements SET client_id=?,poc_id=?,title=?,jd=?,status=?,budget=? WHERE id=?',
-      [client_id || null, poc_id || null, title, jd || null, finalStatus, budget || null, req.params.id]
+      'UPDATE crm_requirements SET client_id=?,poc_id=?,title=?,jd=?,status=?,budget=?,location=? WHERE id=?',
+      [client_id || null, poc_id || null, title, jd || null, finalStatus, budget || null, finalLocation, req.params.id]
     );
     res.json({ ok: true });
   } catch (err) {
