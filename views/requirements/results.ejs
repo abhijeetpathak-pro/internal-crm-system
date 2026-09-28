@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <%- include('../partials/head', { title: 'View Results — CWA CRM' }) %>
+  <style>
+    .result-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      background: #fff;
+    }
+
+    .result-table th {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      background-color: #f9fafb;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      white-space: nowrap;
+    }
+
+    .result-table td {
+      padding: 0.9rem 1rem;
+      vertical-align: middle;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.875rem;
+    }
+
+    .result-table tbody tr:hover {
+      background-color: #fbfcfd;
+    }
+
+    .resource-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.65rem;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .resource-item:hover {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+
+    .resource-name {
+      font-weight: 600;
+      color: #1f2937;
+      text-decoration: none;
+    }
+
+    .resource-name:hover {
+      color: #C0392B;
+      text-decoration: underline;
+    }
+
+    .level-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .level-l1 {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .level-l2 {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
+    .level-l3 {
+      background: #ede9fe;
+      color: #6d28d9;
+      border: 1px solid #ddd6fe;
+    }
+
+    .level-sr {
+      background: #f3f4f6;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
+    }
+
+    .level-select {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .level-reject {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .pipe-divider {
+      color: #9ca3af;
+      font-weight: 600;
+      margin: 0 0.25rem;
+      user-select: none;
+    }
+
+    .stat-box {
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      padding: 0.85rem 1.25rem;
+    }
+  </style>
+</head>
+
+<body>
+  <%- include('../partials/sidebar', { user, active }) %>
+  <div class="main-content">
+    <%- include('../partials/topbar', { user }) %>
+
+    <!-- Header & Action Row -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <div>
+        <h4 class="fw-bold mb-1 d-flex align-items-center">
+          <i class="fa-solid fa-square-poll-vertical me-2 text-danger"></i>View Results
+        </h4>
+        <p class="text-secondary small mb-0">
+          Showing mapped candidates & their interview levels for <strong>Shared Requirements</strong> only.
+        </p>
+      </div>
+      
+      <div class="d-flex align-items-center gap-2">
+        <a href="/requirements" class="btn btn-sm btn-outline-secondary">
+          <i class="fa-solid fa-clipboard-list me-1"></i>All Requirements
+        </a>
+      </div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <% 
+      let totalShared = requirements.length;
+      let totalMapped = 0;
+      let selectedCount = 0;
+      let inInterviewCount = 0;
+
+      requirements.forEach(function(r) {
+        if (r.mappedResources && r.mappedResources.length) {
+          totalMapped += r.mappedResources.length;
+          r.mappedResources.forEach(function(res) {
+            if (res.stage === 'Select') selectedCount++;
+            else if (res.stage === 'L1' || res.stage === 'L2' || res.stage === 'L3') inInterviewCount++;
+          });
+        }
+      });
+    %>
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="stat-box d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small">Shared Requirements</div>
+            <div class="fs-5 fw-bold text-dark" id="statSharedCount"><%= totalShared %></div>
+          </div>
+          <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-2">
+            <i class="fa-solid fa-share-nodes fs-5"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-box d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small">Mapped Candidates</div>
+            <div class="fs-5 fw-bold text-dark"><%= totalMapped %></div>
+          </div>
+          <div class="rounded-circle bg-info bg-opacity-10 text-info p-2">
+            <i class="fa-solid fa-user-group fs-5"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-box d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small">In Interviews (L1/L2)</div>
+            <div class="fs-5 fw-bold text-warning-emphasis"><%= inInterviewCount %></div>
+          </div>
+          <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-2">
+            <i class="fa-solid fa-user-clock fs-5"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-box d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small">Selected Candidates</div>
+            <div class="fs-5 fw-bold text-success"><%= selectedCount %></div>
+          </div>
+          <div class="rounded-circle bg-success bg-opacity-10 text-success p-2">
+            <i class="fa-solid fa-circle-check fs-5"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="card result-card p-3 mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-6 col-lg-5">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white border-end-0">
+              <i class="fa-solid fa-magnifying-glass text-secondary"></i>
+            </span>
+            <input type="text" id="resultSearchInput" class="form-control border-start-0" 
+                   placeholder="Search by ID, Requirement Title, Company, or Candidate..." 
+                   onkeyup="filterResultsTable()">
+            <button class="btn btn-outline-secondary" type="button" onclick="clearResultSearch()">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-7 text-md-end">
+          <span class="badge bg-light text-dark border px-3 py-2" id="filteredCountBadge">
+            Showing <strong id="visibleCount"><%= totalShared %></strong> shared requirements
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Results Table -->
+    <div class="card result-card overflow-hidden">
+      <% if (!requirements.length) { %>
+        <!-- Empty State (No Shared Requirements) -->
+        <div class="text-center py-5">
+          <div class="text-muted mb-3">
+            <i class="fa-solid fa-folder-open fs-1 text-black-50"></i>
+          </div>
+          <h5 class="fw-semibold text-dark">No Shared Requirements Found</h5>
+          <p class="text-muted small mb-3">
+            Requirements that are marked as <strong>Shared</strong> will appear here along with their mapped candidates.
+          </p>
+          <a href="/requirements" class="btn btn-sm btn-primary">
+            <i class="fa-solid fa-arrow-left me-1"></i>Go to Requirements
+          </a>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table result-table align-middle mb-0" id="resultsTable">
+            <thead>
+              <tr>
+                <th style="width: 80px;" class="ps-3">Id</th>
+                <th style="min-width: 200px;">Requirement Title</th>
+                <th style="min-width: 170px;">Company name</th>
+                <th style="min-width: 320px;">Resource name & Level</th>
+                <th style="width: 100px;" class="text-end pe-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% 
+                // Helper to format level & emoji badge
+                function getLevelBadge(stage) {
+                  const s = (stage || 'L1').trim();
+                  if (s === 'L1' || s === '1') {
+                    return { text: '1️⃣', label: '1️⃣ L1', cssClass: 'level-l1', title: 'Level 1 Interview' };
+                  } else if (s === 'L2' || s === '2') {
+                    return { text: '2️⃣', label: '2️⃣ L2', cssClass: 'level-l2', title: 'Level 2 Interview' };
+                  } else if (s === 'L3' || s === '3') {
+                    return { text: '3️⃣', label: '3️⃣ L3', cssClass: 'level-l3', title: 'Level 3 Interview' };
+                  } else if (s === 'SR') {
+                    return { text: '📄', label: '📄 SR', cssClass: 'level-sr', title: 'Screening / Shared' };
+                  } else if (s === 'Select') {
+                    return { text: '✅', label: '✅ Select', cssClass: 'level-select', title: 'Selected' };
+                  } else if (s === 'Reject') {
+                    return { text: '❌', label: '❌ Reject', cssClass: 'level-reject', title: 'Rejected' };
+                  }
+                  return { text: '📌', label: '📌 ' + s, cssClass: 'level-sr', title: s };
+                }
+              %>
+
+              <% requirements.forEach(function(r) { 
+                  const mapped = r.mappedResources || [];
+              %>
+                <tr class="result-row" 
+                    data-id="<%= r.id %>" 
+                    data-title="<%= (r.title || '').toLowerCase() %>" 
+                    data-company="<%= (r.company_name || '').toLowerCase() %>"
+                    data-resources="<%= mapped.map(m => (m.resource_name || '') + ' ' + (m.stage || '')).join(' ').toLowerCase() %>">
+                  
+                  <!-- ID -->
+                  <td class="ps-3">
+                    <span class="badge bg-primary rounded-pill px-2 py-1 font-monospace fw-semibold">
+                      #<%= r.id %>
+                    </span>
+                  </td>
+
+                  <!-- Requirement Title -->
+                  <td>
+                    <a href="/requirements/<%= r.id %>" class="fw-semibold text-dark text-decoration-none d-flex align-items-center">
+                      <%= r.title %>
+                    </a>
+                    <% if (r.location) { %>
+                      <small class="text-muted d-block" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-location-dot me-1"></i><%= r.location %>
+                      </small>
+                    <% } %>
+                  </td>
+
+                  <!-- Company Name -->
+                  <td>
+                    <span class="fw-bold text-secondary">
+                      <i class="fa-solid fa-building me-1 text-muted small"></i><%= r.company_name || '—' %>
+                    </span>
+                  </td>
+
+                  <!-- Resource Name & Level (e.g. Abhijeet 1️⃣ | Vishal 2️⃣ | Sonam 2️⃣) -->
+                  <td>
+                    <% if (mapped.length === 0) { %>
+                      <span class="text-muted fst-italic small">
+                        <i class="fa-solid fa-circle-exclamation me-1 text-black-50"></i>No resources mapped
+                      </span>
+                    <% } else { %>
+                      <div class="d-flex flex-wrap align-items-center gap-1">
+                        <% mapped.forEach(function(res, idx) { 
+                            const badge = getLevelBadge(res.stage);
+                        %>
+                          <div class="resource-item" title="<%= res.unique_uid %> | Skills: <%= res.skills || 'N/A' %>">
+                            <a href="/resources/<%= res.resource_id %>" class="resource-name small">
+                              <%= res.resource_name %>
+                            </a>
+                            <span class="level-badge <%= badge.cssClass %>" title="<%= badge.title %>">
+                              <%= badge.label %>
+                            </span>
+                          </div>
+
+                          <% if (idx < mapped.length - 1) { %>
+                            <span class="pipe-divider">|</span>
+                          <% } %>
+                        <% }); %>
+                      </div>
+                    <% } %>
+                  </td>
+
+                  <!-- Action -->
+                  <td class="text-end pe-3">
+                    <a href="/requirements/<%= r.id %>" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1" style="font-size: 0.78rem;">
+                      View <i class="fa-solid fa-arrow-up-right-from-square ms-1" style="font-size: 0.68rem;"></i>
+                    </a>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- No search matches container -->
+        <div id="noMatchMessage" class="text-center py-5 d-none">
+          <i class="fa-solid fa-magnifying-glass fs-3 text-secondary mb-2"></i>
+          <h6 class="fw-semibold text-dark">No matching requirements found</h6>
+          <p class="text-muted small mb-0">Try searching with a different requirement title, company name, or candidate.</p>
+        </div>
+      <% } %>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    // Live Search in View Results Table
+    function filterResultsTable() {
+      const query = document.getElementById('resultSearchInput').value.trim().toLowerCase();
+      const rows = document.querySelectorAll('.result-row');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const id = row.getAttribute('data-id') || '';
+        const title = row.getAttribute('data-title') || '';
+        const company = row.getAttribute('data-company') || '';
+        const resources = row.getAttribute('data-resources') || '';
+
+        const match = query === '' || 
+                      id.includes(query) || 
+                      title.includes(query) || 
+                      company.includes(query) || 
+                      resources.includes(query);
+
+        if (match) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      const countSpan = document.getElementById('visibleCount');
+      if (countSpan) countSpan.textContent = visibleCount;
+
+      const noMatchDiv = document.getElementById('noMatchMessage');
+      if (noMatchDiv) {
+        if (visibleCount === 0 && rows.length > 0) {
+          noMatchDiv.classList.remove('d-none');
+        } else {
+          noMatchDiv.classList.add('d-none');
+        }
+      }
+    }
+
+    function clearResultSearch() {
+      document.getElementById('resultSearchInput').value = '';
+      filterResultsTable();
+    }
+  </script>
+</body>
+
+</html>

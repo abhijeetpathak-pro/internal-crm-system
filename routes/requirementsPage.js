@@ -79,6 +79,74 @@ router.get('/requirements', async (req, res) => {
 });
 
 /**
+ * ─── 1b. GET /results & /requirements/results ────────────────────────────────
+ * View: Shared Requirements Pipeline & Candidate Level Mapping Results Page
+ * Description: Fetches ONLY shared requirements (is_shared = 1) along with their mapped candidates & interview stages.
+ */
+router.get(['/results', '/requirements/results', '/view-result', '/view-results'], async (req, res) => {
+  try {
+    const user = req.session.user;
+
+    let sql = `SELECT r.id, r.title, r.status, r.budget, r.location, r.created_at, r.is_shared,
+                      c.company_name, u.name AS submitted_by_name
+               FROM crm_requirements r
+               LEFT JOIN crm_clients c ON c.id = r.client_id
+               LEFT JOIN crm_users u ON u.id = r.created_by
+               WHERE r.is_shared = 1`;
+
+    const params = [];
+
+    // Role Filter: Limit standard employees to their own created records
+    if (user.role === 'emp') {
+      sql += ' AND r.created_by = ?';
+      params.push(user.id);
+    }
+
+    // Sort latest first
+    sql += ' ORDER BY r.created_at DESC';
+
+    const [requirements] = await pool.query(sql, params);
+
+    // Fetch mapped resources for all shared requirements
+    if (requirements.length > 0) {
+      const reqIds = requirements.map(r => r.id);
+      const [resRows] = await pool.query(
+        `SELECT rr.requirement_id, rr.stage, res.id AS resource_id, res.resource_name, res.unique_uid, res.skills
+         FROM crm_requirement_resources rr
+         JOIN crm_resources res ON res.id = rr.resource_id
+         WHERE rr.requirement_id IN (?)
+         ORDER BY rr.created_at ASC`,
+        [reqIds]
+      );
+
+      const resMap = new Map();
+      for (const row of resRows) {
+        if (!resMap.has(row.requirement_id)) {
+          resMap.set(row.requirement_id, []);
+        }
+        resMap.get(row.requirement_id).push(row);
+      }
+
+      for (const r of requirements) {
+        r.mappedResources = resMap.get(r.id) || [];
+      }
+    }
+
+    res.render('requirements/results', {
+      requirements,
+      user,
+      active: 'results'
+    });
+  } catch (err) {
+    console.error('Fetch results error:', err);
+    res.status(500).render('error', {
+      message: 'Unable to load results data right now.',
+      user: req.session.user
+    });
+  }
+});
+
+/**
  * ─── 2. GET /requirements/add ────────────────────────────────────────────────
  * View: Add New Requirement Page
  */

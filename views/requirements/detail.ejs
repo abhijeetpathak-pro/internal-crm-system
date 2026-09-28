@@ -329,6 +329,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
   
   <script>
+    const REQ_ID = <%= requirement.id %>;
+    const REQ_TITLE = <%- JSON.stringify(requirement.title || '') %>;
+    const CURRENT_SHARE_STATUS = <%= requirement.is_shared == 1 ? 1 : 0 %>;
+
     // WhatsApp Share Event Listener (Secure data-attributes decoding)
     document.addEventListener('click', function(event) {
       const shareBtn = event.target.closest('.share-whatsapp-btn');

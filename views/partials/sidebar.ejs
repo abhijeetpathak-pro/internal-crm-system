@@ -17,12 +17,13 @@
       <div class="nav-section">Work</div>
 
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+        <a class="nav-link dropdown-toggle <%= active==='requirements'||active==='results'?'active':'' %>" href="#" data-bs-toggle="dropdown">
           <i class="fa-solid fa-clipboard-list"></i> Requirement
         </a>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="/requirements/add"><i class="fa-solid fa-plus me-2"></i>Add Requirement</a></li>
           <li><a class="dropdown-item" href="/requirements"><i class="fa-solid fa-eye me-2"></i>View Requirements</a></li>
+          <li><a class="dropdown-item <%= active==='results'?'active':'' %>" href="/results"><i class="fa-solid fa-square-poll-vertical me-2"></i>View Result</a></li>
         </ul>
       </li>
 
@@ -46,12 +47,12 @@
         </ul>
       </li>
 
-      <li><a href="/in-house" class="nav-link <%= active==='inhouse'?'active':'' %>">
-        <i class="fa-solid fa-building-user"></i> In-House
+      <li><a href="/results" class="nav-link <%= active==='results'?'active':'' %>">
+        <i class="fa-solid fa-square-poll-vertical"></i> View Result
       </a></li>
 
-      <li><a href="/tasks" class="nav-link <%= active==='tasks'?'active':'' %>">
-        <i class="fa-solid fa-list-check"></i> Follow-ups
+      <li><a href="/in-house" class="nav-link <%= active==='inhouse'?'active':'' %>">
+        <i class="fa-solid fa-building-user"></i> In-House
       </a></li>
 
       <!-- ─── CLIENTS (SABHI ROLES KO DIKHEGA) ─── -->

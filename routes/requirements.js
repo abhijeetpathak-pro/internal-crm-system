@@ -208,6 +208,28 @@ router.post('/:id/status', async (req, res) => {
   }
 });
 
+// ─── Toggle is_shared: 1 / 0 ───────────────────────────────────────────────
+router.post('/:id/toggle-share', async (req, res) => {
+  const { is_shared } = req.body;
+  const reqId = req.params.id;
+  const shareVal = (is_shared == 1 || is_shared === true || is_shared === '1') ? 1 : 0;
+
+  try {
+    const user = req.session.user;
+    if (user && user.role === 'emp') {
+      const [owner] = await pool.query('SELECT created_by FROM crm_requirements WHERE id=?', [reqId]);
+      if (!owner.length) return res.status(404).json({ error: 'Not found.' });
+      if (owner[0].created_by !== user.id) return res.status(403).json({ error: 'Permission denied.' });
+    }
+
+    await pool.query('UPDATE crm_requirements SET is_shared=? WHERE id=?', [shareVal, reqId]);
+    res.json({ ok: true, is_shared: shareVal });
+  } catch (err) {
+    console.error('toggle-share error:', err);
+    res.status(500).json({ error: 'Failed to update share status.' });
+  }
+});
+
 // ─── FIX 11: Map Resource to Requirement ─────────────────────────────────────
 router.post('/:id/map-resource', (req, res, next) => {
   upload.single('cv')(req, res, err => { if (err) return res.status(400).json({ error: err.message }); next(); });

@@ -81,7 +81,7 @@
     .resource-table .col-budget { max-width: 90px; }
     .resource-table .col-exp { max-width: 90px; }
     .resource-table .col-empname { max-width: 120px; }
-    .resource-table .col-profile { max-width: 70px; }
+    .resource-table .col-title { max-width: 140px; }
     .resource-table .col-location { max-width: 110px; }
     
     .resource-table td .ellipsis {
@@ -143,7 +143,7 @@
               <% if(user.role==='admin' || user.role==='super_admin'){ %>
               <th class="col-empname">Submit EmpName</th>
               <% } %>
-              <th class="col-profile text-center">Profile</th>
+              <th class="col-title">Title</th>
               <th class="col-location">Location</th>
               <th class="text-center action-col" style="width:60px">Action</th>
             </tr>
@@ -151,12 +151,12 @@
           <tbody id="resourceBody">
             <% (resources || []).forEach(function(r){ %>
             <tr id="row-<%= r.id %>" data-type="<%= r.type %>" data-status="<%= r.status || 'Available' %>"
-                data-search="<%= [r.unique_uid, r.resource_name, r.vendor_name, r.skills, r.submitted_by_name].filter(Boolean).join(' ').toLowerCase() %>">
+                data-search="<%= [r.unique_uid, r.resource_name, r.title, r.vendor_name, r.skills, r.submitted_by_name].filter(Boolean).join(' ').toLowerCase() %>">
               <td class="ps-3"><code class="small"><%= r.unique_uid %></code></td>
               <td><a href="/resources/<%= r.id %>" class="fw-semibold text-decoration-none" style="color:#1A1A1A"><span class="ellipsis"><%= r.resource_name %></span></a></td>
               <td><span class="ellipsis"><%= r.vendor_name || '—' %></span></td>
               
-              <!-- ✅ FIX: Budget Format -->
+              <!-- Budget: real column is salary_lpm -->
               <td>
                 <span class="ellipsis">
                   <%= r.salary_lpm ? r.salary_lpm + ' LPM' : '—' %>
@@ -174,13 +174,7 @@
               <% if(user.role==='admin' || user.role==='super_admin'){ %>
               <td class="small text-secondary"><span class="ellipsis"><%= r.submitted_by_name || '—' %></span></td>
               <% } %>
-              <td class="text-center">
-                <% if(r.cv_path){ %>
-                <a href="<%= r.cv_path %>" target="_blank" class="text-decoration-none" title="View CV/Profile"><i class="fa-solid fa-file-lines text-danger"></i></a>
-                <% }else{ %>
-                <span class="text-secondary">—</span>
-                <% } %>
-              </td>
+              <td class="small text-secondary"><span class="ellipsis"><%= r.title || '—' %></span></td>
               <td class="small text-secondary"><span class="ellipsis"><%= r.current_location||'—' %></span></td>
               <td class="text-center action-col">
                 <div class="dropdown d-inline-block">
@@ -244,7 +238,6 @@
       document.getElementById('resultCount').textContent = count + ' results';
     }
 
-    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const editModal = new bootstrap.Modal(document.getElementById('editModal'));
     let currentRes = null;
 
@@ -265,19 +258,19 @@
         const salVal = r.salary_lpm || '';
 
         let vendorOptions = '<option value="">Select vendor...</option>' + vendors.map(v => 
-          `<option value="${Number.parseInt(v.id, 10)}" ${r.vendor_id == v.id ? 'selected' : ''}>${escapeHtml(v.vendor_name)} (${escapeHtml(v.short_code)})</option>`
+          `<option value="${v.id}" ${r.vendor_id == v.id ? 'selected' : ''}>${v.vendor_name} (${v.short_code})</option>`
         ).join('');
 
         document.getElementById('editModalBody').innerHTML = `
-          <input type="hidden" id="eId" value="${Number.parseInt(r.id, 10)}">
+          <input type="hidden" id="eId" value="${r.id}">
           <div class="row g-2">
-            <div class="col-md-6"><label class="form-label small">Name *</label><input type="text" id="eName" class="form-control form-control-sm" value="${escapeHtml(r.resource_name||'')}" required></div>
-            <div class="col-md-6"><label class="form-label small">Title</label><input type="text" id="eTitle" class="form-control form-control-sm" value="${escapeHtml(r.title||'')}"></div>
-            <div class="col-md-4"><label class="form-label small">Experience (yrs)</label><input type="number" id="eExperience" class="form-control form-control-sm" step="0.5" min="0" value="${escapeHtml(expVal)}"></div>
-            <div class="col-md-8"><label class="form-label small">Skills *</label><input type="text" id="eSkills" class="form-control form-control-sm" value="${escapeHtml(r.skills||'')}" required></div>
-            <div class="col-md-4"><label class="form-label small">Salary LPM</label><input type="number" id="eSalary" class="form-control form-control-sm" step="0.1" value="${escapeHtml(salVal)}"></div>
-            <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" id="eCurLoc" class="form-control form-control-sm" value="${escapeHtml(r.current_location||'')}"></div>
-            <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" id="ePrefLoc" class="form-control form-control-sm" value="${escapeHtml(r.preferred_location||'')}"></div>
+            <div class="col-md-6"><label class="form-label small">Name *</label><input type="text" id="eName" class="form-control form-control-sm" value="${r.resource_name||''}" required></div>
+            <div class="col-md-6"><label class="form-label small">Title</label><input type="text" id="eTitle" class="form-control form-control-sm" value="${r.title||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Experience (yrs)</label><input type="number" id="eExperience" class="form-control form-control-sm" step="0.5" min="0" value="${expVal}"></div>
+            <div class="col-md-8"><label class="form-label small">Skills *</label><input type="text" id="eSkills" class="form-control form-control-sm" value="${r.skills||''}" required></div>
+            <div class="col-md-4"><label class="form-label small">Salary LPA</label><input type="number" id="eSalary" class="form-control form-control-sm" step="0.1" value="${salVal}"></div>
+            <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" id="eCurLoc" class="form-control form-control-sm" value="${r.current_location||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" id="ePrefLoc" class="form-control form-control-sm" value="${r.preferred_location||''}"></div>
             <div class="col-md-4"><label class="form-label small">Type</label>
               <select id="eType" class="form-select form-select-sm" onchange="toggleEditFields()">
                 <option value="In-House" ${!isVendor?'selected':''}>In-House</option>
@@ -292,10 +285,10 @@
               </select>
             </div>
             <div id="eInhouse" class="col-12 row g-2 ${isVendor?'d-none':''}">
-              <div class="col-md-6"><label class="form-label small">Managed By</label><input type="text" id="eMgd" class="form-control form-control-sm" value="${escapeHtml(r.managed_by||'')}"></div>
-              <div class="col-md-6"><label class="form-label small">Phone</label><input type="text" id="ePhone" class="form-control form-control-sm" value="${escapeHtml(r.contact_number||'')}"></div>
-              <div class="col-md-6"><label class="form-label small">Email</label><input type="email" id="eEmail" class="form-control form-control-sm" value="${escapeHtml(r.email||'')}"></div>
-              <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" id="eLinkedin" class="form-control form-control-sm" value="${escapeHtml(r.linkedin||'')}"></div>
+              <div class="col-md-6"><label class="form-label small">Managed By</label><input type="text" id="eMgd" class="form-control form-control-sm" value="${r.managed_by||''}"></div>
+              <div class="col-md-6"><label class="form-label small">Phone</label><input type="text" id="ePhone" class="form-control form-control-sm" value="${r.contact_number||''}"></div>
+              <div class="col-md-6"><label class="form-label small">Email</label><input type="email" id="eEmail" class="form-control form-control-sm" value="${r.email||''}"></div>
+              <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" id="eLinkedin" class="form-control form-control-sm" value="${r.linkedin||''}"></div>
             </div>
             <div id="eVendorWrap" class="col-12 row g-2 ${!isVendor?'d-none':''}">
               <div class="col-md-6">
@@ -331,7 +324,7 @@
         const res = await fetch('/api/pocs/vendor/' + vendorId);
         const pocs = await res.json();
         pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(p => 
-          `<option value="${Number.parseInt(p.id, 10)}" ${selectedPocId == p.id ? 'selected' : ''}>${escapeHtml(p.poc_name)}</option>`
+          `<option value="${p.id}" ${selectedPocId == p.id ? 'selected' : ''}>${p.poc_name}</option>`
         ).join('');
       } catch(e) { console.error('Error loading POCs:', e); }
     }

@@ -172,7 +172,7 @@
               <i class="fa-solid fa-chevron-right text-secondary small"></i>
             </div>
             <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-req-id="<%= mr.id %>">
-              <% ['L1','L2','L3'].forEach(function(st){ %>
+              <% ['SR','L1','L2'].forEach(function(st){ %>
               <button type="button" class="btn btn-sm stage-btn <%= mr.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>" data-stage="<%= st %>"><%= st %> <i class="fa-solid fa-forward"></i></button>
               <% }) %>
               <button type="button" class="btn btn-sm stage-btn <%= mr.stage==='Select'?'stage-btn-active-select':'stage-btn-select' %>" data-stage="Select">Select</button>
