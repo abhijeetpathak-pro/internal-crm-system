@@ -1,467 +1,606 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <%- include('../partials/head',{title:requirement.title+' — CWA CRM'}) %>
-  <style>
-    #newResForm{display:none;border-top:2px solid #C0392B;margin-top:1rem;padding-top:1rem}
-    .workflow-tab{cursor:pointer;padding:.5rem 1rem;border-radius:8px;font-size:.85rem;font-weight:500;border:1.5px solid #dee2e6;background:#fff;color:#6B7280;transition:all .15s}
-    .workflow-tab.active{background:#C0392B;color:#fff;border-color:#C0392B}
+    <style>
+      #newResForm {
+        display: none;
+        border-top: 2px solid #C0392B;
+        margin-top: 1rem;
+        padding-top: 1rem
+      }
 
-    .stage-btn{font-size:.72rem;padding:.15rem .5rem;border-radius:20px;font-weight:600}
-    .stage-btn-arrow{background:#fff;color:#16a34a;border:1px solid #86efac}
-    .stage-btn-active-arrow{background:#16a34a;color:#fff;border:1px solid #16a34a}
-    .stage-btn-select{background:#fff;color:#15803d;border:1px solid #86efac}
-    .stage-btn-active-select{background:#15803d;color:#fff;border:1px solid #15803d}
-    .stage-btn-reject{background:#fff;color:#b91c1c;border:1px solid #fca5a5}
-    .stage-btn-active-reject{background:#b91c1c;color:#fff;border:1px solid #b91c1c}
+      .workflow-tab {
+        cursor: pointer;
+        padding: .5rem 1rem;
+        border-radius: 8px;
+        font-size: .85rem;
+        font-weight: 500;
+        border: 1.5px solid #dee2e6;
+        background: #fff;
+        color: #6B7280;
+        transition: all .15s
+      }
 
-    .jd-container {
-      max-height: 100px; overflow: hidden; transition: max-height 0.3s ease; white-space: pre-wrap; position: relative;
-    }
-    .jd-container.expanded { max-height: none; }
-    .jd-container::after {
-      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, #fff); pointer-events: none;
-    }
-    .jd-container.expanded::after { display: none; }
-    .jd-toggle-btn { cursor: pointer; color: #C0392B; font-weight: 600; font-size: 0.85rem; background: none; border: none; padding: 0; }
-    .jd-toggle-btn:hover { text-decoration: underline; }
+      .workflow-tab.active {
+        background: #C0392B;
+        color: #fff;
+        border-color: #C0392B
+      }
 
-    .field-label { font-weight: 600; font-size: 0.75rem; color: #6B7280; }
-    .field-value { font-weight: 600; font-size: 0.9rem; color: #1A1A1A; }
-    
-    .share-btn-active {
-      background: #dcfce7 !important;
-      color: #166534 !important;
-      border: 1px solid #86efac !important;
-    }
-    .share-btn-inactive {
-      background: #fef2f2 !important;
-      color: #b91c1c !important;
-      border: 1px solid #fca5a5 !important;
-    }
-    .share-btn-default {
-      background: #fff !important;
-      color: #6B7280 !important;
-      border: 1px solid #d1d5db !important;
-    }
-    
-    .action-btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid #dee2e6; background: #fff; display: inline-flex !important; align-items: center; justify-content: center; color: #15803d; transition: all 0.15s; cursor: pointer; }
-    .action-btn:hover { background: #f0fdf4; border-color: #86efac; }
-  </style>
+      .stage-btn {
+        font-size: .72rem;
+        padding: .15rem .5rem;
+        border-radius: 20px;
+        font-weight: 600
+      }
+
+      .stage-btn-arrow {
+        background: #fff;
+        color: #16a34a;
+        border: 1px solid #86efac
+      }
+
+      .stage-btn-active-arrow {
+        background: #16a34a;
+        color: #fff;
+        border: 1px solid #16a34a
+      }
+
+      .stage-btn-select {
+        background: #fff;
+        color: #15803d;
+        border: 1px solid #86efac
+      }
+
+      .stage-btn-active-select {
+        background: #15803d;
+        color: #fff;
+        border: 1px solid #15803d
+      }
+
+      .stage-btn-reject {
+        background: #fff;
+        color: #b91c1c;
+        border: 1px solid #fca5a5
+      }
+
+      .stage-btn-active-reject {
+        background: #b91c1c;
+        color: #fff;
+        border: 1px solid #b91c1c
+      }
+
+      .jd-container {
+        max-height: 100px;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        white-space: pre-wrap;
+        position: relative;
+      }
+
+      .jd-container.expanded {
+        max-height: none;
+      }
+
+      .jd-container::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 30px;
+        background: linear-gradient(transparent, #fff);
+        pointer-events: none;
+      }
+
+      .jd-container.expanded::after {
+        display: none;
+      }
+
+      .jd-toggle-btn {
+        cursor: pointer;
+        color: #C0392B;
+        font-weight: 600;
+        font-size: 0.85rem;
+        background: none;
+        border: none;
+        padding: 0;
+      }
+
+      .jd-toggle-btn:hover {
+        text-decoration: underline;
+      }
+
+      .field-label {
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: #6B7280;
+      }
+
+      .field-value {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #1A1A1A;
+      }
+
+      .share-btn-active {
+        background: #dcfce7 !important;
+        color: #166534 !important;
+        border: 1px solid #86efac !important;
+      }
+
+      .share-btn-inactive {
+        background: #fef2f2 !important;
+        color: #b91c1c !important;
+        border: 1px solid #fca5a5 !important;
+      }
+
+      .share-btn-default {
+        background: #fff !important;
+        color: #6B7280 !important;
+        border: 1px solid #d1d5db !important;
+      }
+
+      .action-btn {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border-radius: 50%;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        color: #15803d;
+        transition: all 0.15s;
+        cursor: pointer;
+      }
+
+      .action-btn:hover {
+        background: #f0fdf4;
+        border-color: #86efac;
+      }
+    </style>
 </head>
+
 <body>
   <%- include('../partials/sidebar',{user,active}) %>
-  <div class="main-content">
-    <%- include('../partials/topbar',{user}) %>
+    <div class="main-content">
+      <%- include('../partials/topbar',{user}) %>
 
-    <!-- ==================== HEADER ==================== -->
-    <div class="d-flex justify-content-between align-items-start mb-3">
-      <div>
-        <h4 class="fw-semibold mb-1"><%= requirement.title %></h4>
-        <span class="badge rounded-pill" style="background:<%= requirement.status==='Hold'?'#f3f4f6':'#dcfce7' %>;color:<%= requirement.status==='Hold'?'#6b7280':'#15803d' %>"><%= requirement.status %></span>
-        <% if(requirement.mapped_resource_name){ %>
-          <span class="badge ms-1" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
-            <i class="fa-solid fa-link me-1"></i><%= requirement.mapped_resource_name %> (<%= requirement.mapped_uid %>)
-          </span>
-        <% } %>
-      </div>
-      
-      <div class="d-flex align-items-center gap-2">
-        <!-- WhatsApp Share Button (Fixed using data attributes to safely pass multi-line JD) -->
-        <button type="button" class="action-btn share-whatsapp-btn" 
-                data-id="<%= requirement.id %>" 
-                data-title="<%= requirement.title %>" 
-                data-company="<%= requirement.company_name || '' %>" 
-                data-location="<%= requirement.location || '' %>" 
-                data-budget="<%= requirement.budget || '' %>" 
-                data-status="<%= requirement.status || 'Open' %>" 
-                data-jd="<%= encodeURIComponent(requirement.jd || '') %>" 
-                title="Share on WhatsApp">
-          <i class="fa-brands fa-whatsapp fs-6"></i>
-        </button>
-
-        <!-- Share Toggle -->
-        <div class="btn-group btn-group-sm" id="shareToggleBtn" role="group">
-          <button type="button" 
-                  class="btn <%= requirement.is_shared == 1 ? 'share-btn-active' : 'share-btn-default' %>" 
-                  id="shareBtn"
-                  data-share="1"
-                  onclick="toggleShare(event, 1)"
-                  style="font-size:0.75rem; min-width:70px;">
-            <i class="fa-solid fa-share-nodes me-1"></i>Shared
-          </button>
-          <button type="button" 
-                  class="btn <%= requirement.is_shared != 1 ? 'share-btn-inactive' : 'share-btn-default' %>" 
-                  id="notShareBtn"
-                  data-share="0"
-                  onclick="toggleShare(event, 0)"
-                  style="font-size:0.75rem; min-width:85px;">
-            <i class="fa-solid fa-ban me-1"></i>Not Shared
-          </button>
-        </div>
-        
-        <div class="btn-group btn-group-sm" id="stToggle" data-id="<%= requirement.id %>">
-          <button class="btn" data-st="Open" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Open</button>
-          <button class="btn" data-st="Hold" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db">Hold</button>
-          <button class="btn" data-st="Closed" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">Closed</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== REQUIREMENT DETAILS ==================== -->
-    <div class="card stat-card p-3 mb-3">
-      <div class="row g-2 small">
-        <h4 class="fw-semibold"><span class="badge bg-primary me-2">#<%= requirement.id %></span></h4>
-        <div class="col-md-3"><span class="text-secondary">Client:</span> <strong><%= requirement.company_name || '—' %></strong></div>
-        <div class="col-md-3"><span class="text-secondary">POC:</span> <%= requirement.poc_name || '—' %></div>
-        <div class="col-md-3"><span class="text-secondary">Budget:</span> <%= requirement.budget || '—' %></div>
-        <div class="col-md-3"><span class="text-secondary">Location:</span> <strong><%= requirement.location || '—' %></strong></div>
-      </div>
-      
-      <div class="row g-2 small mt-2">
-        <div class="col-md-12">
-          <span class="text-secondary">Share Status:</span>
-          <% if(requirement.is_shared == 1) { %>
-            <span class="badge" style="background:#dcfce7;color:#166534;border:1px solid #86efac">
-              <i class="fa-solid fa-circle-check me-1"></i>Shared
+        <!-- ==================== HEADER ==================== -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h4 class="fw-semibold mb-1">
+              <%= requirement.title %>
+            </h4>
+            <span class="badge rounded-pill"
+              style="background:<%= requirement.status==='Hold'?'#f3f4f6':'#dcfce7' %>;color:<%= requirement.status==='Hold'?'#6b7280':'#15803d' %>">
+              <%= requirement.status %>
             </span>
-          <% } else { %>
-            <span class="badge" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5">
-              <i class="fa-regular fa-circle me-1"></i>Not Shared
-            </span>
-          <% } %>
-        </div>
-      </div>
-      
-      <% if(requirement.jd){ %>
-      <hr>
-      <div class="small text-secondary mb-1">Job Description</div>
-      <div class="jd-container" id="jdContainer">
-        <%= requirement.jd %>
-      </div>
-      <button class="jd-toggle-btn mt-1" onclick="toggleJD()" id="jdToggle">
-        <i class="fa-solid fa-chevron-down me-1"></i>See More
-      </button>
-      <% } %>
-    </div>
+            <% if(requirement.mapped_resource_name){ %>
+              <span class="badge ms-1" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+                <i class="fa-solid fa-link me-1"></i>
+                <%= requirement.mapped_resource_name %> (<%= requirement.mapped_uid %>)
+              </span>
+              <% } %>
+          </div>
 
-    <!-- ==================== MAIN CONTENT ==================== -->
-    <div class="row g-3">
-      <div class="col-lg-8">
-        
-        <!-- MAP RESOURCE SECTION -->
+          <div class="d-flex align-items-center gap-2">
+            <!-- WhatsApp Share Button (Fixed using data attributes to safely pass multi-line JD) -->
+            <button type="button" class="action-btn share-whatsapp-btn" data-id="<%= requirement.id %>"
+              data-title="<%= requirement.title %>" data-company="<%= requirement.company_name || '' %>"
+              data-location="<%= requirement.location || '' %>" data-budget="<%= requirement.budget || '' %>"
+              data-status="<%= requirement.status || 'Open' %>"
+              data-jd="<%= encodeURIComponent(requirement.jd || '') %>" title="Share on WhatsApp">
+              <i class="fa-brands fa-whatsapp fs-6"></i>
+            </button>
+
+            <!-- Share Toggle -->
+            <div class="btn-group btn-group-sm" id="shareToggleBtn" role="group">
+              <button type="button"
+                class="btn <%= requirement.is_shared == 1 ? 'share-btn-active' : 'share-btn-default' %>" id="shareBtn"
+                data-share="1" onclick="toggleShare(event, 1)" style="font-size:0.75rem; min-width:70px;">
+                <i class="fa-solid fa-share-nodes me-1"></i>Shared
+              </button>
+              <button type="button"
+                class="btn <%= requirement.is_shared != 1 ? 'share-btn-inactive' : 'share-btn-default' %>"
+                id="notShareBtn" data-share="0" onclick="toggleShare(event, 0)"
+                style="font-size:0.75rem; min-width:85px;">
+                <i class="fa-solid fa-ban me-1"></i>Not Shared
+              </button>
+            </div>
+
+            <div class="btn-group btn-group-sm" id="stToggle" data-id="<%= requirement.id %>">
+              <button class="btn" data-st="Open"
+                style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Open</button>
+              <button class="btn" data-st="Hold"
+                style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db">Hold</button>
+              <button class="btn" data-st="Closed"
+                style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">Closed</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== REQUIREMENT DETAILS ==================== -->
         <div class="card stat-card p-3 mb-3">
-          <div class="fw-semibold mb-3"><i class="fa-solid fa-link me-2 text-danger"></i>Map Resource to this Requirement</div>
-
-          <div class="d-flex gap-2 mb-3">
-            <button class="workflow-tab active" id="tabDB" onclick="switchTab('db')">
-              <i class="fa-solid fa-database me-1"></i>Select From Database
-            </button>
-            <button class="workflow-tab" id="tabNew" onclick="switchTab('new')">
-              <i class="fa-solid fa-plus me-1"></i>Add New Resource
-            </button>
+          <div class="row g-2 small">
+            <h4 class="fw-semibold"><span class="badge bg-primary me-2">#<%= requirement.id %></span></h4>
+            <div class="col-md-3"><span class="text-secondary">Client:</span> <strong>
+                <%= requirement.company_name || '—' %>
+              </strong></div>
+            <div class="col-md-3"><span class="text-secondary">POC:</span>
+              <%= requirement.poc_name || '—' %>
+            </div>
+            <div class="col-md-3"><span class="text-secondary">Budget:</span>
+              <%= requirement.budget || '—' %>
+            </div>
+            <div class="col-md-3"><span class="text-secondary">Location:</span> <strong>
+                <%= requirement.location || '—' %>
+              </strong></div>
           </div>
 
-          <div id="dbSection">
-            <div class="row g-2 mb-2">
-              <div class="col-md-4">
-                <label class="form-label small">Type</label>
-                <select id="dbType" class="form-select form-select-sm" onchange="loadDbResources()">
-                  <option value="In-House">In-House</option>
-                  <option value="Vendor">Vendor</option>
-                </select>
-              </div>
-              <div id="dbVendorWrap" class="col-md-4 d-none">
-                <label class="form-label small">Vendor</label>
-                <select id="dbVendor" class="form-select form-select-sm" onchange="loadDbPocs()">
-                  <option value="">Select vendor...</option>
-                </select>
-              </div>
-              <div id="dbPocWrap" class="col-md-4 d-none">
-                <label class="form-label small">POC</label>
-                <select id="dbPoc" class="form-select form-select-sm" onchange="loadDbResources()">
-                  <option value="">All POCs</option>
-                </select>
-              </div>
+          <div class="row g-2 small mt-2">
+            <div class="col-md-12">
+              <span class="text-secondary">Share Status:</span>
+              <% if(requirement.is_shared==1) { %>
+                <span class="badge" style="background:#dcfce7;color:#166534;border:1px solid #86efac">
+                  <i class="fa-solid fa-circle-check me-1"></i>Shared
+                </span>
+                <% } else { %>
+                  <span class="badge" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5">
+                    <i class="fa-regular fa-circle me-1"></i>Not Shared
+                  </span>
+                  <% } %>
             </div>
-            <div class="mb-2">
-              <label class="form-label small">Resource *</label>
-              <select id="dbResource" class="form-select form-select-sm">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Note *</label>
-              <textarea id="dbNote" class="form-control form-control-sm" rows="2" placeholder="e.g. Profile shared via email on 1st July"></textarea>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="submitDbResource()">
-              <i class="fa-solid fa-check me-1"></i>Map Resource
-            </button>
           </div>
 
-          <div id="newResForm">
-            <form id="newResInlineForm" enctype="multipart/form-data">
-              <div class="row g-2">
-                <div class="col-md-6"><label class="form-label small">Resource Name *</label><input type="text" name="resource_name" class="form-control form-control-sm" required></div>
-                <div class="col-md-6"><label class="form-label small">Title</label><input type="text" name="title" class="form-control form-control-sm" placeholder="e.g. Backend Developer"></div>
-                <div class="col-md-8"><label class="form-label small">Skills * (first = primary tech)</label><input type="text" name="skills" class="form-control form-control-sm" placeholder="Python, Django, AWS" required></div>
-                
-                <div class="col-md-4"><label class="form-label small">Experience (yrs)</label>
-                  <input type="number" name="experience_years" class="form-control form-control-sm" step="0.5" min="0" placeholder="e.g. 5">
+          <% if(requirement.jd){ %>
+            <hr>
+            <div class="small text-secondary mb-1">Job Description</div>
+            <div class="jd-container" id="jdContainer">
+              <%= requirement.jd %>
+            </div>
+            <button class="jd-toggle-btn mt-1" onclick="toggleJD()" id="jdToggle">
+              <i class="fa-solid fa-chevron-down me-1"></i>See More
+            </button>
+            <% } %>
+        </div>
+
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <div class="row g-3">
+          <div class="col-lg-8">
+
+            <!-- MAP RESOURCE SECTION -->
+            <div class="card stat-card p-3 mb-3">
+              <div class="fw-semibold mb-3"><i class="fa-solid fa-link me-2 text-danger"></i>Map Resource to this
+                Requirement</div>
+
+              <div class="d-flex gap-2 mb-3">
+                <button class="workflow-tab active" id="tabDB" onclick="switchTab('db')">
+                  <i class="fa-solid fa-database me-1"></i>Select From Database
+                </button>
+                <button class="workflow-tab" id="tabNew" onclick="switchTab('new')">
+                  <i class="fa-solid fa-plus me-1"></i>Add New Resource
+                </button>
+              </div>
+
+              <div id="dbSection">
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4">
+                    <label class="form-label small">Type</label>
+                    <select id="dbType" class="form-select form-select-sm" onchange="loadDbResources()">
+                      <option value="In-House">In-House</option>
+                      <option value="Vendor">Vendor</option>
+                    </select>
+                  </div>
+                  <div id="dbVendorWrap" class="col-md-4 d-none">
+                    <label class="form-label small">Vendor</label>
+                    <select id="dbVendor" class="form-select form-select-sm" onchange="loadDbPocs()">
+                      <option value="">Select vendor...</option>
+                    </select>
+                  </div>
+                  <div id="dbPocWrap" class="col-md-4 d-none">
+                    <label class="form-label small">POC</label>
+                    <select id="dbPoc" class="form-select form-select-sm" onchange="loadDbResources()">
+                      <option value="">All POCs</option>
+                    </select>
+                  </div>
                 </div>
-                
-                <div class="col-md-4"><label class="form-label small">Salary (LPA)</label>
-                  <input type="number" name="salary_lpa" class="form-control form-control-sm" step="0.1" placeholder="e.g. 12.5">
-                </div>
-                
-                <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text" name="current_location" class="form-control form-control-sm"></div>
-                <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text" name="preferred_location" class="form-control form-control-sm"></div>
-                <div class="col-md-4">
-                  <label class="form-label small">Type *</label>
-                  <select name="type" id="nrType" class="form-select form-select-sm" onchange="toggleNrFields()">
-                    <option value="In-House">In-House</option>
-                    <option value="Vendor">Vendor</option>
+                <div class="mb-2">
+                  <label class="form-label small">Resource *</label>
+                  <select id="dbResource" class="form-select form-select-sm">
+                    <option value="">Loading...</option>
                   </select>
                 </div>
-                <div class="col-md-8">
-                  <label class="form-label small">CV Upload (PDF/DOC/DOCX)</label>
-                  <input type="file" name="cv" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
+                <div class="mb-2">
+                  <label class="form-label small">Note *</label>
+                  <textarea id="dbNote" class="form-control form-control-sm" rows="2"
+                    placeholder="e.g. Profile shared via email on 1st July"></textarea>
                 </div>
-
-                <div id="nrInhouse" class="col-12 row g-2">
-                  <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text" name="managed_by" class="form-control form-control-sm"></div>
-                  <div class="col-md-4"><label class="form-label small">Phone</label><input type="text" name="contact_number" class="form-control form-control-sm"></div>
-                  <div class="col-md-4"><label class="form-label small">Email</label><input type="email" name="email" class="form-control form-control-sm"></div>
-                  <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text" name="linkedin" class="form-control form-control-sm"></div>
-                </div>
-
-                <div id="nrVendor" class="col-12 row g-2 d-none">
-                  <div class="col-md-6">
-                    <label class="form-label small">Vendor</label>
-                    <select name="vendor_id" id="nrVendorSel" class="form-select form-select-sm" onchange="loadNrPocs()"></select>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label small">Vendor POC</label>
-                    <select name="poc_id" id="nrPocSel" class="form-select form-select-sm"></select>
-                  </div>
-                </div>
-
-                <div class="col-12">
-                  <label class="form-label small">Note * (will appear in activity log)</label>
-                  <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="e.g. New resource added and mapped to this requirement" required></textarea>
-                </div>
+                <button class="btn btn-primary btn-sm" onclick="submitDbResource()">
+                  <i class="fa-solid fa-check me-1"></i>Map Resource
+                </button>
               </div>
-              <button type="submit" class="btn btn-primary btn-sm mt-2">
-                <i class="fa-solid fa-plus me-1"></i>Create & Map Resource
-              </button>
-              <div id="nrMsg" class="alert mt-2 d-none py-1 small"></div>
-            </form>
-          </div>
 
-          <div id="mapMsg" class="alert mt-2 d-none py-2 small"></div>
-        </div>
+              <div id="newResForm">
+                <form id="newResInlineForm" enctype="multipart/form-data">
+                  <div class="row g-2">
+                    <div class="col-md-6"><label class="form-label small">Resource Name *</label><input type="text"
+                        name="resource_name" class="form-control form-control-sm" required></div>
+                    <div class="col-md-6"><label class="form-label small">Title</label><input type="text" name="title"
+                        class="form-control form-control-sm" placeholder="e.g. Backend Developer"></div>
+                    <div class="col-md-8"><label class="form-label small">Skills * (first = primary tech)</label><input
+                        type="text" name="skills" class="form-control form-control-sm" placeholder="Python, Django, AWS"
+                        required></div>
 
-        <!-- ACTIVITY LOG -->
-        <div class="card stat-card p-3">
-          <div class="fw-semibold mb-3">Activity / Decision Log</div>
-          <form id="actForm" class="mb-3">
-            <div class="mb-2"><textarea id="actNote" class="form-control form-control-sm" rows="2" placeholder="Add a manual update..." required></textarea></div>
-            <button type="submit" class="btn btn-sm btn-primary">Add Update</button>
-          </form>
-          <ul class="list-group list-group-flush">
-            <% activity.forEach(function(a){ %>
-            <li class="list-group-item px-0">
-              <div class="d-flex justify-content-between">
-                <strong class="small"><%= a.created_by_name||'Unknown' %></strong>
-                <span class="text-secondary small"><%= new Date(a.created_at).toLocaleString('en-IN') %></span>
-              </div>
-              <div class="small mt-1"><%= a.note %></div>
-              <% if(a.resource_name){ %>
-              <a href="/resources/<%= a.ref_resource_id %>" class="badge mt-1 text-decoration-none" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
-                <i class="fa-solid fa-user-tie me-1"></i><%= a.resource_name %> (<%= a.unique_uid %>)
-              </a>
-              <% } %>
-            </li>
-            <% }) %>
-            <% if(!activity.length){ %><li class="list-group-item px-0 text-secondary small">No updates yet.</li><% } %>
-          </ul>
-        </div>
-      </div>
+                    <div class="col-md-4"><label class="form-label small">Experience (yrs)</label>
+                      <input type="number" name="experience_years" class="form-control form-control-sm" step="0.5"
+                        min="0" placeholder="e.g. 5">
+                    </div>
 
-      <!-- RIGHT COLUMN - Profiles Sent -->
-      <div class="col-lg-4">
-        <div class="card stat-card p-3">
-          <div class="fw-semibold mb-2">
-            <i class="fa-solid fa-paper-plane me-1 text-danger"></i>Profiles Sent
-            <span class="badge bg-danger rounded-pill ms-1"><%= resourcesSent.length %></span>
-          </div>
-          <% if(!resourcesSent.length){ %>
-            <div class="text-secondary small text-center py-3">No profiles sent yet.</div>
-          <% }else{ %>
-            <div class="d-flex flex-column gap-2" style="max-height:520px;overflow-y:auto">
-              <% resourcesSent.forEach(function(rs,i){ %>
-              <div class="p-2 rounded border" style="background:#fdf2f2">
-                <div class="d-flex align-items-center justify-content-between" onclick="window.location='/resources/<%= rs.id %>'" style="cursor:pointer">
-                  <div>
-                    <div class="small fw-semibold"><%= i+1 %>. <%= rs.resource_name %></div>
-                    <div class="small text-secondary"><%= rs.skills?(rs.skills.split(',')[0].trim()):'—' %></div>
-                    <div class="small text-secondary"><%= rs.vendor_name||'In-House' %></div>
+                    <div class="col-md-4"><label class="form-label small">Salary (LPM)</label>
+                      <input type="number" name="salary_lpm" class="form-control form-control-sm" step="0.1"
+                        placeholder="e.g. 12.5">
+                    </div>
+
+                    <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text"
+                        name="current_location" class="form-control form-control-sm"></div>
+                    <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text"
+                        name="preferred_location" class="form-control form-control-sm"></div>
+                    <div class="col-md-4">
+                      <label class="form-label small">Type *</label>
+                      <select name="type" id="nrType" class="form-select form-select-sm" onchange="toggleNrFields()">
+                        <option value="In-House">In-House</option>
+                        <option value="Vendor">Vendor</option>
+                      </select>
+                    </div>
+                    <div class="col-md-8">
+                      <label class="form-label small">CV Upload (PDF/DOC/DOCX)</label>
+                      <input type="file" name="cv" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
+                    </div>
+
+                    <div id="nrInhouse" class="col-12 row g-2">
+                      <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text"
+                          name="managed_by" class="form-control form-control-sm"></div>
+                      <div class="col-md-4"><label class="form-label small">Phone</label><input type="text"
+                          name="contact_number" class="form-control form-control-sm"></div>
+                      <div class="col-md-4"><label class="form-label small">Email</label><input type="email"
+                          name="email" class="form-control form-control-sm"></div>
+                      <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text"
+                          name="linkedin" class="form-control form-control-sm"></div>
+                    </div>
+
+                    <div id="nrVendor" class="col-12 row g-2 d-none">
+                      <div class="col-md-6">
+                        <label class="form-label small">Vendor</label>
+                        <select name="vendor_id" id="nrVendorSel" class="form-select form-select-sm"
+                          onchange="loadNrPocs()"></select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small">Vendor POC</label>
+                        <select name="poc_id" id="nrPocSel" class="form-select form-select-sm"></select>
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <label class="form-label small">Note * (will appear in activity log)</label>
+                      <textarea name="note" class="form-control form-control-sm" rows="2"
+                        placeholder="e.g. New resource added and mapped to this requirement" required></textarea>
+                    </div>
                   </div>
-                  <i class="fa-solid fa-chevron-right text-secondary small"></i>
-                </div>
-                <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-resource-id="<%= rs.id %>">
-                  <% ['SR','L1','L2'].forEach(function(st){ %>
-                  <button type="button" class="btn btn-sm stage-btn <%= rs.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>" data-stage="<%= st %>"><%= st %> <i class="fa-solid fa-forward"></i></button>
-                  <% }) %>
-                  <button type="button" class="btn btn-sm stage-btn <%= rs.stage==='Select'?'stage-btn-active-select':'stage-btn-select' %>" data-stage="Select">Select</button>
-                  <button type="button" class="btn btn-sm stage-btn <%= rs.stage==='Reject'?'stage-btn-active-reject':'stage-btn-reject' %>" data-stage="Reject">Reject</button>
-                </div>
+                  <button type="submit" class="btn btn-primary btn-sm mt-2">
+                    <i class="fa-solid fa-plus me-1"></i>Create & Map Resource
+                  </button>
+                  <div id="nrMsg" class="alert mt-2 d-none py-1 small"></div>
+                </form>
               </div>
-              <% }) %>
+
+              <div id="mapMsg" class="alert mt-2 d-none py-2 small"></div>
             </div>
-          <% } %>
+
+            <!-- ACTIVITY LOG -->
+            <div class="card stat-card p-3">
+              <div class="fw-semibold mb-3">Activity / Decision Log</div>
+              <form id="actForm" class="mb-3">
+                <div class="mb-2"><textarea id="actNote" class="form-control form-control-sm" rows="2"
+                    placeholder="Add a manual update..." required></textarea></div>
+                <button type="submit" class="btn btn-sm btn-primary">Add Update</button>
+              </form>
+              <ul class="list-group list-group-flush">
+                <% activity.forEach(function(a){ %>
+                  <li class="list-group-item px-0">
+                    <div class="d-flex justify-content-between">
+                      <strong class="small">
+                        <%= a.created_by_name||'Unknown' %>
+                      </strong>
+                      <span class="text-secondary small">
+                        <%= new Date(a.created_at).toLocaleString('en-IN') %>
+                      </span>
+                    </div>
+                    <div class="small mt-1">
+                      <%= a.note %>
+                    </div>
+                    <% if(a.resource_name){ %>
+                      <a href="/resources/<%= a.ref_resource_id %>" class="badge mt-1 text-decoration-none"
+                        style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+                        <i class="fa-solid fa-user-tie me-1"></i>
+                        <%= a.resource_name %> (<%= a.unique_uid %>)
+                      </a>
+                      <% } %>
+                  </li>
+                  <% }) %>
+                    <% if(!activity.length){ %>
+                      <li class="list-group-item px-0 text-secondary small">No updates yet.</li>
+                      <% } %>
+              </ul>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN - Profiles Sent -->
+          <div class="col-lg-4">
+            <div class="card stat-card p-3">
+              <div class="fw-semibold mb-2">
+                <i class="fa-solid fa-paper-plane me-1 text-danger"></i>Profiles Sent
+                <span class="badge bg-danger rounded-pill ms-1">
+                  <%= resourcesSent.length %>
+                </span>
+              </div>
+              <% if(!resourcesSent.length){ %>
+                <div class="text-secondary small text-center py-3">No profiles sent yet.</div>
+                <% }else{ %>
+                  <div class="d-flex flex-column gap-2" style="max-height:520px;overflow-y:auto">
+                    <% resourcesSent.forEach(function(rs,i){ %>
+                      <div class="p-2 rounded border" style="background:#fdf2f2">
+                        <div class="d-flex align-items-center justify-content-between"
+                          onclick="window.location='/resources/<%= rs.id %>'" style="cursor:pointer">
+                          <div>
+                            <div class="small fw-semibold">
+                              <%= i+1 %>. <%= rs.resource_name %>
+                            </div>
+                            <div class="small text-secondary">
+                              <%= rs.skills?(rs.skills.split(',')[0].trim()):'—' %>
+                            </div>
+                            <div class="small text-secondary">
+                              <%= rs.vendor_name||'In-House' %>
+                            </div>
+                          </div>
+                          <i class="fa-solid fa-chevron-right text-secondary small"></i>
+                        </div>
+                        <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-resource-id="<%= rs.id %>">
+                          <% ['SR','L1','L2'].forEach(function(st){ %>
+                            <button type="button"
+                              class="btn btn-sm stage-btn <%= rs.stage===st?'stage-btn-active-arrow':'stage-btn-arrow' %>"
+                              data-stage="<%= st %>">
+                              <%= st %> <i class="fa-solid fa-forward"></i>
+                            </button>
+                            <% }) %>
+                              <button type="button"
+                                class="btn btn-sm stage-btn <%= rs.stage==='Select'?'stage-btn-active-select':'stage-btn-select' %>"
+                                data-stage="Select">Select</button>
+                              <button type="button"
+                                class="btn btn-sm stage-btn <%= rs.stage==='Reject'?'stage-btn-active-reject':'stage-btn-reject' %>"
+                                data-stage="Reject">Reject</button>
+                        </div>
+                      </div>
+                      <% }) %>
+                  </div>
+                  <% } %>
+            </div>
+          </div>
+
         </div>
-      </div>
-      
     </div>
-  </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
-  
-  <script>
-    const REQ_ID = <%= requirement.id %>;
-    const REQ_TITLE = <%- JSON.stringify(requirement.title || '') %>;
-    const CURRENT_SHARE_STATUS = <%= requirement.is_shared == 1 ? 1 : 0 %>;
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 
-    // WhatsApp Share Event Listener (Secure data-attributes decoding)
-    document.addEventListener('click', function(event) {
-      const shareBtn = event.target.closest('.share-whatsapp-btn');
-      if (shareBtn) {
-        event.preventDefault();
-        
-        const id = shareBtn.getAttribute('data-id');
-        const title = shareBtn.getAttribute('data-title');
-        const company = shareBtn.getAttribute('data-company');
-        const location = shareBtn.getAttribute('data-location');
-        const budget = shareBtn.getAttribute('data-budget');
-        const status = shareBtn.getAttribute('data-status');
-        const jd = decodeURIComponent(shareBtn.getAttribute('data-jd') || '');
+    <script>
+      const REQ_ID = <%= requirement.id %>;
+      const REQ_TITLE = <%- JSON.stringify(requirement.title || '') %>;
+      const CURRENT_SHARE_STATUS = <%= requirement.is_shared == 1 ? 1 : 0 %>;
 
-        const text = `🚀 *New Requirement Opening*\n\n` +
-                     `*Job ID:* #${id}\n` +
-                     `*Title:* ${title}\n` +
-                     `*Location:* ${location || '—'}\n` +
-                     `*Budget:* ${budget || '—'}\n` +
-                     `*Status:* ${status || 'Open'}\n\n` +
-                     `📋 *Job Description:*\n${jd}`;
-        
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-      }
-    });
+      // WhatsApp Share Event Listener (Secure data-attributes decoding)
+      document.addEventListener('click', function (event) {
+        const shareBtn = event.target.closest('.share-whatsapp-btn');
+        if (shareBtn) {
+          event.preventDefault();
 
-    function toggleJD() {
-      const container = document.getElementById('jdContainer');
-      const btn = document.getElementById('jdToggle');
-      if (container.classList.contains('expanded')) {
-        container.classList.remove('expanded');
-        btn.innerHTML = '<i class="fa-solid fa-chevron-down me-1"></i>See More';
-      } else {
-        container.classList.add('expanded');
-        btn.innerHTML = '<i class="fa-solid fa-chevron-up me-1"></i>See Less';
-      }
-    }
+          const id = shareBtn.getAttribute('data-id');
+          const title = shareBtn.getAttribute('data-title');
+          const company = shareBtn.getAttribute('data-company');
+          const location = shareBtn.getAttribute('data-location');
+          const budget = shareBtn.getAttribute('data-budget');
+          const status = shareBtn.getAttribute('data-status');
+          const jd = decodeURIComponent(shareBtn.getAttribute('data-jd') || '');
 
-    async function toggleShare(event, shareValue) {
-      event.preventDefault();
-      event.stopPropagation();
-      
-      if (shareValue === CURRENT_SHARE_STATUS) return;
-      
-      const shareBtn = document.getElementById('shareBtn');
-      const notShareBtn = document.getElementById('notShareBtn');
-      shareBtn.disabled = true;
-      notShareBtn.disabled = true;
-      shareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
-      notShareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
-      
-      try {
-        const response = await fetch('/api/requirements/' + REQ_ID + '/toggle-share', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_shared: shareValue })
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setTimeout(() => { location.reload(); }, 500);
+          const text = `🚀 *New Requirement Opening*\n\n` +
+            `*Job ID:* #${id}\n` +
+            `*Title:* ${title}\n` +
+            `*Location:* ${location || '—'}\n` +
+            `*Budget:* ${budget || '—'}\n` +
+            `*Status:* ${status || 'Open'}\n\n` +
+            `📋 *Job Description:*\n${jd}`;
+
+          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+        }
+      });
+
+      function toggleJD() {
+        const container = document.getElementById('jdContainer');
+        const btn = document.getElementById('jdToggle');
+        if (container.classList.contains('expanded')) {
+          container.classList.remove('expanded');
+          btn.innerHTML = '<i class="fa-solid fa-chevron-down me-1"></i>See More';
         } else {
-          alert(data.error || 'Failed to update share status.');
+          container.classList.add('expanded');
+          btn.innerHTML = '<i class="fa-solid fa-chevron-up me-1"></i>See Less';
+        }
+      }
+
+      async function toggleShare(event, shareValue) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (shareValue === CURRENT_SHARE_STATUS) return;
+
+        const shareBtn = document.getElementById('shareBtn');
+        const notShareBtn = document.getElementById('notShareBtn');
+        shareBtn.disabled = true;
+        notShareBtn.disabled = true;
+        shareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
+        notShareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
+
+        try {
+          const response = await fetch('/api/requirements/' + REQ_ID + '/toggle-share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_shared: shareValue })
+          });
+          const data = await response.json();
+          if (response.ok) {
+            setTimeout(() => { location.reload(); }, 500);
+          } else {
+            alert(data.error || 'Failed to update share status.');
+            shareBtn.disabled = false;
+            notShareBtn.disabled = false;
+            shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes me-1"></i>Shared';
+            notShareBtn.innerHTML = '<i class="fa-solid fa-ban me-1"></i>Not Shared';
+          }
+        } catch (error) {
+          alert('Network error. Please try again.');
           shareBtn.disabled = false;
           notShareBtn.disabled = false;
           shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes me-1"></i>Shared';
           notShareBtn.innerHTML = '<i class="fa-solid fa-ban me-1"></i>Not Shared';
         }
-      } catch (error) {
-        alert('Network error. Please try again.');
-        shareBtn.disabled = false;
-        notShareBtn.disabled = false;
-        shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes me-1"></i>Shared';
-        notShareBtn.innerHTML = '<i class="fa-solid fa-ban me-1"></i>Not Shared';
       }
-    }
 
-    document.querySelectorAll('#stToggle button').forEach(function(btn) {
-      btn.addEventListener('click', async function() {
-        const chosenStatus = this.dataset.st;
-        if (chosenStatus === 'Closed') {
-          const sure = confirm('⚠️ Closing this requirement will permanently delete it, its resource pipeline, and its activity log. This cannot be undone. Continue?');
-          if (!sure) return;
-        }
-        
-        const allBtns = document.querySelectorAll('#stToggle button');
-        allBtns.forEach(b => b.disabled = true);
-        
-        try {
-          const res = await fetch('/api/requirements/' + REQ_ID + '/status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: chosenStatus })
-          });
-          const data = await res.json();
-          if (res.ok && data.deleted) {
-            window.location = '/requirements';
-          } else if (res.ok) {
-            location.reload();
-          } else {
-            alert(data.error || 'Failed to update status.');
-            allBtns.forEach(b => b.disabled = false);
+      document.querySelectorAll('#stToggle button').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          const chosenStatus = this.dataset.st;
+          if (chosenStatus === 'Closed') {
+            const sure = confirm('⚠️ Closing this requirement will permanently delete it, its resource pipeline, and its activity log. This cannot be undone. Continue?');
+            if (!sure) return;
           }
-        } catch (error) {
-          alert('Network error. Please try again.');
-          allBtns.forEach(b => b.disabled = false);
-        }
-      });
-    });
 
-    document.querySelectorAll('.stage-btns').forEach(function(group) {
-      const resourceId = group.dataset.resourceId;
-      group.querySelectorAll('.stage-btn').forEach(function(btn) {
-        btn.addEventListener('click', async function(e) {
-          e.stopPropagation();
-          const stage = this.dataset.stage;
-          const allBtns = group.querySelectorAll('.stage-btn');
+          const allBtns = document.querySelectorAll('#stToggle button');
           allBtns.forEach(b => b.disabled = true);
-          
+
           try {
-            const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId + '/stage', {
-              method: 'PATCH',
+            const res = await fetch('/api/requirements/' + REQ_ID + '/status', {
+              method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ stage: stage })
+              body: JSON.stringify({ status: chosenStatus })
             });
-            if (res.ok) {
+            const data = await res.json();
+            if (res.ok && data.deleted) {
+              window.location = '/requirements';
+            } else if (res.ok) {
               location.reload();
             } else {
-              const data = await res.json();
-              alert(data.error || 'Failed to update stage.');
+              alert(data.error || 'Failed to update status.');
               allBtns.forEach(b => b.disabled = false);
             }
           } catch (error) {
@@ -470,211 +609,241 @@
           }
         });
       });
-    });
 
-    document.getElementById('actForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const note = document.getElementById('actNote').value.trim();
-      if (!note) return;
-      
-      const btn = this.querySelector('button[type="submit"]');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
-      
-      try {
-        const res = await fetch('/api/activity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            entity_type: 'requirement',
-            entity_id: REQ_ID,
-            note: note
-          })
+      document.querySelectorAll('.stage-btns').forEach(function (group) {
+        const resourceId = group.dataset.resourceId;
+        group.querySelectorAll('.stage-btn').forEach(function (btn) {
+          btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
+            const stage = this.dataset.stage;
+            const allBtns = group.querySelectorAll('.stage-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            try {
+              const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId + '/stage', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stage: stage })
+              });
+              if (res.ok) {
+                location.reload();
+              } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to update stage.');
+                allBtns.forEach(b => b.disabled = false);
+              }
+            } catch (error) {
+              alert('Network error. Please try again.');
+              allBtns.forEach(b => b.disabled = false);
+            }
+          });
         });
-        if (res.ok) location.reload();
-        else {
-          alert('Failed to add update.');
+      });
+
+      document.getElementById('actForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const note = document.getElementById('actNote').value.trim();
+        if (!note) return;
+
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+
+        try {
+          const res = await fetch('/api/activity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              entity_type: 'requirement',
+              entity_id: REQ_ID,
+              note: note
+            })
+          });
+          if (res.ok) location.reload();
+          else {
+            alert('Failed to add update.');
+            btn.disabled = false;
+            btn.innerHTML = 'Add Update';
+          }
+        } catch (error) {
+          alert('Network error. Please try again.');
           btn.disabled = false;
           btn.innerHTML = 'Add Update';
         }
-      } catch (error) {
-        alert('Network error. Please try again.');
-        btn.disabled = false;
-        btn.innerHTML = 'Add Update';
-      }
-    });
+      });
 
-    function switchTab(tab) {
-      var isDb = tab === 'db';
-      document.getElementById('tabDB').className = 'workflow-tab' + (isDb ? ' active' : '');
-      document.getElementById('tabNew').className = 'workflow-tab' + (!isDb ? ' active' : '');
-      document.getElementById('dbSection').style.display = isDb ? 'block' : 'none';
-      document.getElementById('newResForm').style.display = !isDb ? 'block' : 'none';
-      if (!isDb) loadVendorsForNew();
-    }
-
-    async function loadDbResources() {
-      var type = document.getElementById('dbType').value;
-      var vendorId = document.getElementById('dbVendor').value;
-      var pocId = document.getElementById('dbPoc').value;
-      var vWrap = document.getElementById('dbVendorWrap');
-      var pWrap = document.getElementById('dbPocWrap');
-
-      if (type === 'Vendor') {
-        vWrap.classList.remove('d-none');
-        var vSelect = document.getElementById('dbVendor');
-        if (vSelect.options.length === 0 || vSelect.options[0].value === '') {
-          var vRes = await fetch('/api/vendors');
-          var vendors = await vRes.json();
-          vSelect.innerHTML = '<option value="">All vendors</option>' + vendors.map(function(v) {
-            return '<option value="' + v.id + '">' + v.vendor_name + '</option>';
-          }).join('');
-        }
-      } else {
-        vWrap.classList.add('d-none');
-        pWrap.classList.add('d-none');
+      function switchTab(tab) {
+        var isDb = tab === 'db';
+        document.getElementById('tabDB').className = 'workflow-tab' + (isDb ? ' active' : '');
+        document.getElementById('tabNew').className = 'workflow-tab' + (!isDb ? ' active' : '');
+        document.getElementById('dbSection').style.display = isDb ? 'block' : 'none';
+        document.getElementById('newResForm').style.display = !isDb ? 'block' : 'none';
+        if (!isDb) loadVendorsForNew();
       }
 
-      var url = '/api/resources?type=' + type;
-      if (vendorId) url += '&vendor_id=' + vendorId;
-      if (pocId) url += '&poc_id=' + pocId;
-      var res = await fetch(url);
-      var resources = await res.json();
-      var rSelect = document.getElementById('dbResource');
-      if (resources.length) {
-        rSelect.innerHTML = '<option value="">Select resource...</option>' + resources.map(function(r) {
-          return '<option value="' + r.id + '">' + r.resource_name + ' — ' + r.unique_uid + '</option>';
-        }).join('');
-      } else {
-        rSelect.innerHTML = '<option value="">No resources found</option>';
-      }
-    }
+      async function loadDbResources() {
+        var type = document.getElementById('dbType').value;
+        var vendorId = document.getElementById('dbVendor').value;
+        var pocId = document.getElementById('dbPoc').value;
+        var vWrap = document.getElementById('dbVendorWrap');
+        var pWrap = document.getElementById('dbPocWrap');
 
-    async function loadDbPocs() {
-      var vendorId = document.getElementById('dbVendor').value;
-      var pWrap = document.getElementById('dbPocWrap');
-      if (vendorId) {
-        var res = await fetch('/api/pocs/vendor/' + vendorId);
-        var pocs = await res.json();
-        var pSelect = document.getElementById('dbPoc');
-        pSelect.innerHTML = '<option value="">All POCs</option>' + pocs.map(function(p) {
-          return '<option value="' + p.id + '">' + p.poc_name + '</option>';
-        }).join('');
-        pWrap.classList.remove('d-none');
-      } else {
-        pWrap.classList.add('d-none');
-      }
-      loadDbResources();
-    }
-
-    async function submitDbResource() {
-      var resourceId = document.getElementById('dbResource').value;
-      var note = document.getElementById('dbNote').value.trim();
-      var msg = document.getElementById('mapMsg');
-      if (!resourceId || !note) {
-        msg.className = 'alert alert-danger mt-2 py-2 small';
-        msg.textContent = 'Please select a resource and add a note.';
-        return;
-      }
-      
-      const btn = document.querySelector('#dbSection .btn-primary');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Mapping...';
-      
-      try {
-        var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            resource_id: resourceId,
-            note: note,
-            req_title: REQ_TITLE
-          })
-        });
-        var data = await res.json();
-        if (res.ok) {
-          msg.className = 'alert alert-success mt-2 py-2 small';
-          msg.textContent = '✅ Resource mapped successfully!';
-          setTimeout(function() { location.reload(); }, 1200);
+        if (type === 'Vendor') {
+          vWrap.classList.remove('d-none');
+          var vSelect = document.getElementById('dbVendor');
+          if (vSelect.options.length === 0 || vSelect.options[0].value === '') {
+            var vRes = await fetch('/api/vendors');
+            var vendors = await vRes.json();
+            vSelect.innerHTML = '<option value="">All vendors</option>' + vendors.map(function (v) {
+              return '<option value="' + v.id + '">' + v.vendor_name + '</option>';
+            }).join('');
+          }
         } else {
+          vWrap.classList.add('d-none');
+          pWrap.classList.add('d-none');
+        }
+
+        var url = '/api/resources?type=' + type;
+        if (vendorId) url += '&vendor_id=' + vendorId;
+        if (pocId) url += '&poc_id=' + pocId;
+        var res = await fetch(url);
+        var resources = await res.json();
+        var rSelect = document.getElementById('dbResource');
+        if (resources.length) {
+          rSelect.innerHTML = '<option value="">Select resource...</option>' + resources.map(function (r) {
+            return '<option value="' + r.id + '">' + r.resource_name + ' — ' + r.unique_uid + '</option>';
+          }).join('');
+        } else {
+          rSelect.innerHTML = '<option value="">No resources found</option>';
+        }
+      }
+
+      async function loadDbPocs() {
+        var vendorId = document.getElementById('dbVendor').value;
+        var pWrap = document.getElementById('dbPocWrap');
+        if (vendorId) {
+          var res = await fetch('/api/pocs/vendor/' + vendorId);
+          var pocs = await res.json();
+          var pSelect = document.getElementById('dbPoc');
+          pSelect.innerHTML = '<option value="">All POCs</option>' + pocs.map(function (p) {
+            return '<option value="' + p.id + '">' + p.poc_name + '</option>';
+          }).join('');
+          pWrap.classList.remove('d-none');
+        } else {
+          pWrap.classList.add('d-none');
+        }
+        loadDbResources();
+      }
+
+      async function submitDbResource() {
+        var resourceId = document.getElementById('dbResource').value;
+        var note = document.getElementById('dbNote').value.trim();
+        var msg = document.getElementById('mapMsg');
+        if (!resourceId || !note) {
           msg.className = 'alert alert-danger mt-2 py-2 small';
-          msg.textContent = data.error || 'Failed to map resource.';
+          msg.textContent = 'Please select a resource and add a note.';
+          return;
+        }
+
+        const btn = document.querySelector('#dbSection .btn-primary');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Mapping...';
+
+        try {
+          var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              resource_id: resourceId,
+              note: note,
+              req_title: REQ_TITLE
+            })
+          });
+          var data = await res.json();
+          if (res.ok) {
+            msg.className = 'alert alert-success mt-2 py-2 small';
+            msg.textContent = '✅ Resource mapped successfully!';
+            setTimeout(function () { location.reload(); }, 1200);
+          } else {
+            msg.className = 'alert alert-danger mt-2 py-2 small';
+            msg.textContent = data.error || 'Failed to map resource.';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Map Resource';
+          }
+        } catch (error) {
+          msg.className = 'alert alert-danger mt-2 py-2 small';
+          msg.textContent = 'Network error. Please try again.';
           btn.disabled = false;
           btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Map Resource';
         }
-      } catch (error) {
-        msg.className = 'alert alert-danger mt-2 py-2 small';
-        msg.textContent = 'Network error. Please try again.';
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Map Resource';
       }
-    }
 
-    function toggleNrFields() {
-      var isVendor = document.getElementById('nrType').value === 'Vendor';
-      document.getElementById('nrInhouse').classList.toggle('d-none', isVendor);
-      document.getElementById('nrVendor').classList.toggle('d-none', !isVendor);
-    }
+      function toggleNrFields() {
+        var isVendor = document.getElementById('nrType').value === 'Vendor';
+        document.getElementById('nrInhouse').classList.toggle('d-none', isVendor);
+        document.getElementById('nrVendor').classList.toggle('d-none', !isVendor);
+      }
 
-    async function loadVendorsForNew() {
-      var vSelect = document.getElementById('nrVendorSel');
-      if (vSelect.options.length > 1) return;
-      var res = await fetch('/api/vendors');
-      var vendors = await res.json();
-      vSelect.innerHTML = '<option value="">Select vendor...</option>' + vendors.map(function(v) {
-        return '<option value="' + v.id + '">' + v.vendor_name + ' (' + v.short_code + ')</option>';
-      }).join('');
-    }
+      async function loadVendorsForNew() {
+        var vSelect = document.getElementById('nrVendorSel');
+        if (vSelect.options.length > 1) return;
+        var res = await fetch('/api/vendors');
+        var vendors = await res.json();
+        vSelect.innerHTML = '<option value="">Select vendor...</option>' + vendors.map(function (v) {
+          return '<option value="' + v.id + '">' + v.vendor_name + ' (' + v.short_code + ')</option>';
+        }).join('');
+      }
 
-    async function loadNrPocs() {
-      var vendorId = document.getElementById('nrVendorSel').value;
-      if (!vendorId) return;
-      var res = await fetch('/api/pocs/vendor/' + vendorId);
-      var pocs = await res.json();
-      var pSelect = document.getElementById('nrPocSel');
-      pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(function(p) {
-        return '<option value="' + p.id + '">' + p.poc_name + '</option>';
-      }).join('');
-    }
+      async function loadNrPocs() {
+        var vendorId = document.getElementById('nrVendorSel').value;
+        if (!vendorId) return;
+        var res = await fetch('/api/pocs/vendor/' + vendorId);
+        var pocs = await res.json();
+        var pSelect = document.getElementById('nrPocSel');
+        pSelect.innerHTML = '<option value="">Select POC (optional)...</option>' + pocs.map(function (p) {
+          return '<option value="' + p.id + '">' + p.poc_name + '</option>';
+        }).join('');
+      }
 
-    document.getElementById('newResInlineForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      var msg = document.getElementById('nrMsg');
-      var fd = new FormData(e.target);
-      fd.append('req_title', REQ_TITLE);
-      
-      const btn = this.querySelector('button[type="submit"]');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Creating...';
-      
-      try {
-        var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
-          method: 'POST',
-          body: fd
-        });
-        var data = await res.json();
-        if (res.ok) {
-          msg.className = 'alert alert-success mt-2 py-1 small';
-          msg.textContent = '✅ Resource created & mapped!';
-          setTimeout(function() { location.reload(); }, 1200);
-        } else {
+      document.getElementById('newResInlineForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var msg = document.getElementById('nrMsg');
+        var fd = new FormData(e.target);
+        fd.append('req_title', REQ_TITLE);
+
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Creating...';
+
+        try {
+          var res = await fetch('/api/requirements/' + REQ_ID + '/map-resource', {
+            method: 'POST',
+            body: fd
+          });
+          var data = await res.json();
+          if (res.ok) {
+            msg.className = 'alert alert-success mt-2 py-1 small';
+            msg.textContent = '✅ Resource created & mapped!';
+            setTimeout(function () { location.reload(); }, 1200);
+          } else {
+            msg.className = 'alert alert-danger mt-2 py-1 small';
+            msg.textContent = data.error || 'Failed to create resource.';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Create & Map Resource';
+          }
+        } catch (error) {
           msg.className = 'alert alert-danger mt-2 py-1 small';
-          msg.textContent = data.error || 'Failed to create resource.';
+          msg.textContent = 'Network error. Please try again.';
           btn.disabled = false;
           btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Create & Map Resource';
         }
-      } catch (error) {
-        msg.className = 'alert alert-danger mt-2 py-1 small';
-        msg.textContent = 'Network error. Please try again.';
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Create & Map Resource';
-      }
-    });
+      });
 
-    loadDbResources();
-    if (document.getElementById('nrType').value === 'Vendor') {
-      toggleNrFields();
-    }
-  </script>
+      loadDbResources();
+      if (document.getElementById('nrType').value === 'Vendor') {
+        toggleNrFields();
+      }
+    </script>
 </body>
+
 </html>

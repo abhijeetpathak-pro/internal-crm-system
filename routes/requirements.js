@@ -1,27 +1,36 @@
-// ============================================================================
-// routes/requirements.js — JSON API for Requirements
-// ============================================================================
-
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
-const { createDocumentUpload, hasExpectedSignature, removeUploadedFile } = require('../middleware/uploads');
-const upload = createDocumentUpload();
+const multer = require('multer');
+const path = require('path');
+const pool = require('../db'); // Correct relative path to root db.js
 
-// Inline resource CV uploads use the shared secure document uploader.
+// ======================== MULTER CONFIG ========================
+const fs = require('fs');
 
-// Valid stored requirement statuses. 'Closed' is intentionally absent —
-// see POST /:id/status for why.
+// Ensure upload directory exists
+const uploadDir = path.join(__dirname, '..', 'uploads', 'cvs');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    cb(null, `${Date.now()}-${safe}`);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });;
+
+// ======================== CONSTANTS ========================
 const REQ_STATUSES = ['Open', 'Hold'];
+const PIPELINE_STAGES = ['SR', 'L1', 'L2', 'Select', 'Reject'];
 
-// Valid resource-pipeline stages, in their natural left-to-right order.
-const PIPELINE_STAGES = ['L1', 'L2', 'L3', 'Reject', 'Select'];
-
+// ======================== HELPER FUNCTIONS ========================
 function sanitizeToken(str) {
   return (str || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '');
 }
 
-// ─── Duplicate-aware UID generator ────────────────────────────────────────────
 async function generateUid(conn, { vendorCode, resourceName, technology }) {
   const nameToken = sanitizeToken(resourceName);
   const techToken = sanitizeToken(technology);
@@ -47,7 +56,6 @@ async function generateUid(conn, { vendorCode, resourceName, technology }) {
   return { duplicate: false, uid: `${exactBase}-${max + 1}` };
 }
 
-// ─── Helper: Refresh resource availability ──────────────────────────────────
 async function refreshResourceAvailability(conn, resourceId) {
   const [[{ activeCount }]] = await conn.query(
     `SELECT COUNT(*) AS activeCount FROM crm_requirement_resources
@@ -59,105 +67,276 @@ async function refreshResourceAvailability(conn, resourceId) {
   }
 }
 
-// ─── GET recent (dashboard) ──────────────────────────────────────────────────
-router.get('/recent', async (req, res) => {
+// ======================== GET ALL REQUIREMENTS (LIST) ========================
+router.get('/', async (req, res) => {
   try {
-    const user = req.session.user;
-    let sql = `SELECT r.id,r.title,r.status,r.budget,r.created_at,c.company_name
-       FROM crm_requirements r LEFT JOIN crm_clients c ON c.id=r.client_id`;
-    const params = [];
-    if (user && user.role === 'emp') {
-      sql += ' WHERE r.created_by = ?';
-      params.push(user.id);
-    }
-    sql += ' ORDER BY r.created_at DESC LIMIT 8';
-    const [rows] = await pool.query(sql, params);
-    res.json(rows);
+    const [requirements] = await pool.query(`
+      SELECT r.*, 
+             c.company_name AS client_name,
+             u.name AS submitted_by_name,
+             r.is_shared,
+             r.location,
+             r.share_status,
+             (
+               SELECT COUNT(*) FROM crm_requirement_resources rr 
+               WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
+             ) AS mapped_profile_count
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      LEFT JOIN crm_users u ON r.created_by = u.id
+      ORDER BY r.id DESC
+    `);
+
+    const groupsMap = {};
+    requirements.forEach(reqItem => {
+      const dateKey = reqItem.created_at ? new Date(reqItem.created_at).toISOString().split('T')[0] : 'Other';
+      const label = reqItem.created_at ? new Date(reqItem.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'LONG', year: 'numeric' }).toUpperCase() : 'OTHER';
+      
+      if (!groupsMap[dateKey]) {
+        groupsMap[dateKey] = { key: dateKey, label: label, requirements: [] };
+      }
+      groupsMap[dateKey].requirements.push(reqItem);
+    });
+
+    const groups = Object.values(groupsMap);
+
+    res.render('requirements/list', {
+      user: req.session.user,
+      active: 'requirements',
+      groups: groups,
+      requirements: requirements
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch recent requirements.' });
+    console.error('Error fetching requirements list:', err);
+    res.status(500).send('Server Error');
   }
 });
 
-// ─── GET single requirement ──────────────────────────────────────────────────
+//==============================SHARE REQUIREMENT  DETAIL / API ===============
+router.get('/share/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT r.*, c.company_name AS client_name 
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      WHERE r.id = ?
+    `, [req.params.id]);
+
+    if (!rows.length) return res.status(404).send('Requirement not found');
+    
+    const requirement = rows[0];
+    
+    // Ek public view render karo jisme login ki zaroorat na ho
+    res.render('requirements/public-share', { requirement });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ======================== GET REQUIREMENT DETAIL / API ========================
 router.get('/:id', async (req, res) => {
+  const reqId = req.params.id;
+  
   try {
-    const [rows] = await pool.query(
-      `SELECT r.*, c.company_name, p.poc_name,
-              res.resource_name AS mapped_resource_name, res.unique_uid AS mapped_uid
-       FROM crm_requirements r
-       LEFT JOIN crm_clients c ON c.id=r.client_id
-       LEFT JOIN crm_pocs p ON p.id=r.poc_id
-       LEFT JOIN crm_resources res ON res.id=r.resource_id
-       WHERE r.id=?`, [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Not found.' });
-    const user = req.session.user;
-    if (user && user.role === 'emp' && rows[0].created_by !== user.id) {
-      return res.status(403).json({ error: 'Permission denied.' });
+    const [reqRows] = await pool.query(`
+      SELECT r.*, 
+             c.company_name,
+             c.id AS client_id,
+             p.poc_name,
+             p.id AS poc_id,
+             r.is_shared,
+             r.location,
+             res.id AS mapped_resource_id,
+             res.resource_name AS mapped_resource_name,
+             res.unique_uid AS mapped_uid
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      LEFT JOIN crm_pocs p ON r.poc_id = p.id
+      LEFT JOIN crm_resources res ON r.resource_id = res.id
+      WHERE r.id = ?
+    `, [reqId]);
+
+    if (!reqRows.length) {
+      if (req.xhr || req.headers.accept?.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
+        return res.status(404).json({ error: 'Requirement not found' });
+      }
+      return res.status(404).send('Requirement not found');
     }
-    res.json(rows[0]);
+
+    const requirement = reqRows[0];
+
+    if (req.xhr || req.headers.accept?.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
+      const [clients] = await pool.query('SELECT id, company_name FROM crm_clients ORDER BY company_name');
+      const [pocs] = await pool.query('SELECT id, poc_name, client_id FROM crm_pocs ORDER BY poc_name');
+      
+      return res.json({ 
+        requirement: {
+          ...requirement,
+          location: requirement.location || ''
+        }, 
+        clients, 
+        pocs 
+      });
+    }
+
+    const [activity] = await pool.query(`
+      SELECT a.*, u.name AS created_by_name,
+             res.resource_name, res.unique_uid
+      FROM crm_activity_logs a
+      LEFT JOIN crm_users u ON a.created_by = u.id
+      LEFT JOIN crm_resources res ON a.ref_resource_id = res.id
+      WHERE a.entity_type = 'requirement' AND a.entity_id = ?
+      ORDER BY a.created_at DESC
+    `, [reqId]);
+
+    const [resourcesSent] = await pool.query(`
+      SELECT rr.id AS rr_id, rr.stage, rr.requirement_id,
+             res.id AS id, res.id AS resource_id, res.resource_name, res.skills, res.unique_uid,
+             v.vendor_name
+      FROM crm_requirement_resources rr
+      JOIN crm_resources res ON rr.resource_id = res.id
+      LEFT JOIN crm_vendors v ON res.vendor_id = v.id
+      WHERE rr.requirement_id = ?
+      ORDER BY rr.created_at DESC
+    `, [reqId]);
+
+    res.render('requirements/detail', {
+      user: req.session.user,
+      active: 'requirements',
+      requirement: requirement,
+      activity: activity,
+      resourcesSent: resourcesSent
+    });
+
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch requirement.' });
+    console.error('Error fetching requirement details:', err);
+    if (req.xhr || req.headers.accept?.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
+      return res.status(500).json({ error: 'Server Error: ' + err.message });
+    }
+    res.status(500).send('Server Error');
   }
 });
 
-// ─── POST create requirement ──────────────────────────────────────────────────
+// ======================== CREATE NEW REQUIREMENT ========================
 router.post('/', async (req, res) => {
-  const { client_id, poc_id, title, jd, status, budget, location, r_location } = req.body;
+  const { client_id, poc_id, title, jd, status, budget, r_location } = req.body;
   if (!client_id || !title) return res.status(400).json({ error: 'client_id and title are required.' });
   const finalStatus = status && REQ_STATUSES.includes(status) ? status : 'Open';
-  const finalLocation = (location !== undefined ? location : r_location) || null;
   try {
     const [r] = await pool.query(
-      'INSERT INTO crm_requirements (client_id,poc_id,title,jd,status,budget,location,created_by) VALUES (?,?,?,?,?,?,?,?)',
-      [client_id, poc_id || null, title, jd || null, finalStatus, budget || null, finalLocation, req.session.user.id]
+      'INSERT INTO crm_requirements (client_id, poc_id, title, jd, status, budget, location, created_by, is_shared) VALUES (?,?,?,?,?,?,?,?,?)',
+      [client_id, poc_id || null, title, jd || null, finalStatus, budget || null, r_location || null, req.session.user.id, 0]
     );
     res.status(201).json({ id: r.insertId });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create requirement.' });
+    console.error('Create error:', err);
+    res.status(500).json({ error: 'Failed to create requirement. ' + err.message });
   }
 });
 
-// ─── PUT update requirement ──────────────────────────────────────────────────
+// ======================== UPDATE REQUIREMENT ========================
 router.put('/:id', async (req, res) => {
-  const { client_id, poc_id, title, jd, status, budget, location, r_location } = req.body;
-  if (!title) return res.status(400).json({ error: 'title is required.' });
+  const { client_id, poc_id, title, jd, status, budget, r_location } = req.body;
+  
+  if (!title) {
+    return res.status(400).json({ success: false, error: 'title is required.' });
+  }
+  
   const finalStatus = status && REQ_STATUSES.includes(status) ? status : 'Open';
-  const finalLocation = (location !== undefined ? location : r_location) || null;
+  
   try {
     const user = req.session.user;
     if (user && user.role === 'emp') {
       const [owner] = await pool.query('SELECT created_by FROM crm_requirements WHERE id=?', [req.params.id]);
-      if (!owner.length) return res.status(404).json({ error: 'Not found.' });
-      if (owner[0].created_by !== user.id) return res.status(403).json({ error: 'Permission denied.' });
+      if (!owner.length) return res.status(404).json({ success: false, error: 'Not found.' });
+      if (owner[0].created_by !== user.id) return res.status(403).json({ success: false, error: 'Permission denied.' });
     }
+    
     await pool.query(
-      'UPDATE crm_requirements SET client_id=?,poc_id=?,title=?,jd=?,status=?,budget=?,location=? WHERE id=?',
-      [client_id || null, poc_id || null, title, jd || null, finalStatus, budget || null, finalLocation, req.params.id]
+      'UPDATE crm_requirements SET client_id=?, poc_id=?, title=?, jd=?, status=?, budget=?, location=? WHERE id=?',
+      [client_id || null, poc_id || null, title, jd || null, finalStatus, budget || null, r_location || null, req.params.id]
     );
-    res.json({ ok: true });
+    
+    res.json({ success: true, message: 'Requirement updated successfully!' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update requirement.' });
+    console.error('PUT requirement error:', err);
+    res.status(500).json({ success: false, error: 'Failed to update requirement. ' + err.message });
   }
 });
 
-// ─── DELETE requirement ──────────────────────────────────────────────────────
+// ======================== DELETE REQUIREMENT ========================
 router.delete('/:id', async (req, res) => {
+  const reqId = req.params.id;
+  const user = req.session.user;
+
+  const conn = await pool.getConnection();
   try {
-    const user = req.session.user;
+    await conn.beginTransaction();
+
     if (user && user.role === 'emp') {
-      const [owner] = await pool.query('SELECT created_by FROM crm_requirements WHERE id=?', [req.params.id]);
-      if (!owner.length) return res.status(404).json({ error: 'Not found.' });
-      if (owner[0].created_by !== user.id) return res.status(403).json({ error: 'Permission denied.' });
+      const [owner] = await conn.query('SELECT created_by FROM crm_requirements WHERE id=?', [reqId]);
+      if (!owner.length) {
+        await conn.rollback();
+        return res.status(404).json({ error: 'Not found.' });
+      }
+      if (owner[0].created_by !== user.id) {
+        await conn.rollback();
+        return res.status(403).json({ error: 'Permission denied.' });
+      }
     }
-    await pool.query('DELETE FROM crm_requirements WHERE id=?', [req.params.id]);
+
+    await conn.query('DELETE FROM crm_requirement_resources WHERE requirement_id = ?', [reqId]);
+    await conn.query("DELETE FROM crm_activity_logs WHERE (entity_type='requirement' AND entity_id=?) OR ref_requirement_id=?", [reqId, reqId]);
+
+    const [delResult] = await conn.query('DELETE FROM crm_requirements WHERE id = ?', [reqId]);
+
+    if (delResult.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Requirement not found.' });
+    }
+
+    await conn.commit();
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete requirement.' });
+    await conn.rollback();
+    console.error('Delete requirement error:', err);
+    res.status(500).json({ error: 'Failed to delete requirement: ' + err.message });
+  } finally {
+    conn.release();
   }
 });
 
-// ─── Status toggle: Open / Hold / Closed ────────────────────────────────────
+// ======================== TOGGLE SHARE ========================
+router.post('/:id/toggle-share', async (req, res) => {
+  const reqId = req.params.id;
+  const { is_shared } = req.body;
+  
+  try {
+    const sharedVal = (is_shared === '1' || is_shared === 1 || is_shared === true) ? 1 : 0;
+    
+    await pool.query('UPDATE crm_requirements SET is_shared = ? WHERE id = ?', [sharedVal, reqId]);
+    
+    const message = sharedVal ? '✅ Requirement marked as Shared' : '❌ Requirement marked as Not Shared';
+    await pool.query(
+      `INSERT INTO crm_activity_logs (entity_type, entity_id, note, created_by)
+       VALUES ('requirement', ?, ?, ?)`,
+      [reqId, message, req.session.user ? req.session.user.id : 1]
+    );
+    
+    res.json({ 
+      ok: true, 
+      is_shared: sharedVal,
+      message: message
+    });
+    
+  } catch (err) {
+    console.error('Toggle share error:', err);
+    res.status(500).json({ error: 'Failed to update share status: ' + err.message });
+  }
+});
+
+// ======================== UPDATE STATUS ========================
 router.post('/:id/status', async (req, res) => {
   const { status } = req.body;
   const reqId = req.params.id;
@@ -181,7 +360,6 @@ router.post('/:id/status', async (req, res) => {
     }
   }
 
-  // ── Closed => delete everywhere ──────────────────────────────────────────
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -207,56 +385,17 @@ router.post('/:id/status', async (req, res) => {
     conn.release();
   }
 });
+//========================= requirements track l1,l2,selected 
 
-// ─── Toggle is_shared: 1 / 0 ───────────────────────────────────────────────
-router.post('/:id/toggle-share', async (req, res) => {
-  const { is_shared } = req.body;
-  const reqId = req.params.id;
-  const shareVal = (is_shared == 1 || is_shared === true || is_shared === '1') ? 1 : 0;
 
-  try {
-    const user = req.session.user;
-    if (user && user.role === 'emp') {
-      const [owner] = await pool.query('SELECT created_by FROM crm_requirements WHERE id=?', [reqId]);
-      if (!owner.length) return res.status(404).json({ error: 'Not found.' });
-      if (owner[0].created_by !== user.id) return res.status(403).json({ error: 'Permission denied.' });
-    }
-
-    await pool.query('UPDATE crm_requirements SET is_shared=? WHERE id=?', [shareVal, reqId]);
-    res.json({ ok: true, is_shared: shareVal });
-  } catch (err) {
-    console.error('toggle-share error:', err);
-    res.status(500).json({ error: 'Failed to update share status.' });
-  }
-});
-
-// ─── FIX 11: Map Resource to Requirement ─────────────────────────────────────
+// ======================== MAP RESOURCE ========================
 router.post('/:id/map-resource', (req, res, next) => {
   upload.single('cv')(req, res, err => { if (err) return res.status(400).json({ error: err.message }); next(); });
 }, async (req, res) => {
-  if (req.file) {
-    try {
-      if (!(await hasExpectedSignature(req.file))) {
-        await removeUploadedFile(req.file);
-        return res.status(400).json({ error: 'Uploaded document content does not match its file type.' });
-      }
-    } catch (err) {
-      await removeUploadedFile(req.file);
-      return res.status(400).json({ error: 'Uploaded document could not be validated.' });
-    }
-  }
-
   const reqId = req.params.id;
 
-  const [reqRows] = await pool.query('SELECT id, created_by FROM crm_requirements WHERE id=?', [reqId]);
-  if (!reqRows.length) {
-    await removeUploadedFile(req.file);
-    return res.status(404).json({ error: 'Requirement not found.' });
-  }
-  if (req.session.user.role === 'emp' && reqRows[0].created_by !== req.session.user.id) {
-    await removeUploadedFile(req.file);
-    return res.status(403).json({ error: 'Permission denied.' });
-  }
+  const [reqRows] = await pool.query('SELECT id FROM crm_requirements WHERE id=?', [reqId]);
+  if (!reqRows.length) return res.status(404).json({ error: 'Requirement not found.' });
 
   const conn = await pool.getConnection();
   try {
@@ -264,13 +403,10 @@ router.post('/:id/map-resource', (req, res, next) => {
 
     let resourceId;
 
-    // ── CASE A: Select from database ──────────────────────────────────────────
     if (req.body.resource_id) {
       resourceId = parseInt(req.body.resource_id);
       const [rRows] = await conn.query('SELECT id FROM crm_resources WHERE id=?', [resourceId]);
       if (!rRows.length) { await conn.rollback(); return res.status(404).json({ error: 'Resource not found.' }); }
-
-    // ── CASE B: Create new resource inline ────────────────────────────────────
     } else {
       const b = req.body;
       if (!b.resource_name || !b.skills || !b.type) {
@@ -290,7 +426,7 @@ router.post('/:id/map-resource', (req, res, next) => {
         resolvedVendorId = vRows[0].id;
       }
 
-      const technology = (b.skills || '').split(',')[0];
+      const technology = (b.title || '').trim() || (b.skills || '').split(',')[0];
       const uidResult = await generateUid(conn, { vendorCode, resourceName: b.resource_name, technology });
       if (uidResult.duplicate) {
         await conn.rollback();
@@ -302,7 +438,6 @@ router.post('/:id/map-resource', (req, res, next) => {
       const uniqueUid = uidResult.uid;
       const cvPath = req.file ? `/uploads/cvs/${req.file.filename}` : null;
 
-      // ✅ FIXED: Extract experience_years and salary_lpm
       const experience_years = b.experience_years || null;
       const salary_lpm = b.salary_lpm || null;
 
@@ -327,29 +462,23 @@ router.post('/:id/map-resource', (req, res, next) => {
           type === 'In-House' ? (b.linkedin || null) : null,
           b.preferred_location || null, 
           b.current_location || null,
-          experience_years,  // ✅ ADDED
-          salary_lpm,        // ✅ ADDED
+          experience_years,
+          salary_lpm,
           req.session.user.id
         ]
       );
       resourceId = newRes.insertId;
     }
 
-    // ── Step 1: Link resource to requirement ──────────────────────────────────
     await conn.query('UPDATE crm_requirements SET resource_id=? WHERE id=?', [resourceId, reqId]);
-
-    // ── Step 2: Auto-update resource status to Mapped ─────────────────────────
     await conn.query("UPDATE crm_resources SET status='Mapped' WHERE id=?", [resourceId]);
-
-    // ── Step 3: Create/keep the pipeline row ──────────────────────────────────
     await conn.query(
       `INSERT INTO crm_requirement_resources (requirement_id, resource_id, stage, created_by)
-       VALUES (?, ?, 'L1', ?)
+       VALUES (?, ?, 'SR', ?)
        ON DUPLICATE KEY UPDATE requirement_id = requirement_id`,
       [reqId, resourceId, req.session.user.id]
     );
 
-    // ── Step 4: Auto activity log on resource ─────────────────────────────────
     const mapNote = `Mapped to Requirement ID: ${reqId}${req.body.req_title ? ' — ' + req.body.req_title : ''}`;
     await conn.query(
       `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_requirement_id,created_by)
@@ -357,12 +486,13 @@ router.post('/:id/map-resource', (req, res, next) => {
       [resourceId, mapNote, reqId, req.session.user.id]
     );
 
-    // ── Step 5: Activity log on requirement side ──────────────────────────────
     await conn.query(
       `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_resource_id,created_by)
        VALUES ('requirement',?,?,?,?)`,
       [reqId, `Resource mapped to this requirement.`, resourceId, req.session.user.id]
     );
+
+    await conn.query('UPDATE crm_requirements SET is_shared = 1 WHERE id = ?', [reqId]);
 
     await conn.commit();
     res.json({ ok: true, resource_id: resourceId });
@@ -370,21 +500,20 @@ router.post('/:id/map-resource', (req, res, next) => {
   } catch (err) {
     await conn.rollback();
     console.error('Map resource error:', err);
-    await removeUploadedFile(req.file);
-    res.status(500).json({ error: 'Failed to map resource.' });
+    res.status(500).json({ error: 'Failed to map resource. ' + err.message });
   } finally {
     conn.release();
   }
 });
 
-// ─── Resource pipeline stage change ─────────────────────────────────────────
+// ======================== UPDATE STAGE ========================
 router.patch('/:id/resource/:resourceId/stage', async (req, res) => {
   const reqId = req.params.id;
   const resourceId = req.params.resourceId;
   const { stage } = req.body;
 
   if (!PIPELINE_STAGES.includes(stage))
-    return res.status(400).json({ error: `Invalid stage. Must be one of: ${PIPELINE_STAGES.join(', ')}` });
+    return res.status(400).json({ error: `Invalid stage.` });
 
   const user = req.session.user;
   if (user && user.role === 'emp') {
@@ -405,7 +534,7 @@ router.patch('/:id/resource/:resourceId/stage', async (req, res) => {
        WHERE rr.requirement_id=? AND rr.resource_id=? FOR UPDATE`,
       [reqId, resourceId]
     );
-    if (!pairRows.length) { await conn.rollback(); return res.status(404).json({ error: 'This resource is not mapped to this requirement.' }); }
+    if (!pairRows.length) { await conn.rollback(); return res.status(404).json({ error: 'Not mapped.' }); }
     const pair = pairRows[0];
 
     await conn.query('UPDATE crm_requirement_resources SET stage=? WHERE id=?', [stage, pair.id]);
@@ -414,11 +543,6 @@ router.patch('/:id/resource/:resourceId/stage', async (req, res) => {
       `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_resource_id,created_by)
        VALUES ('requirement',?,?,?,?)`,
       [reqId, `${pair.resource_name} (${pair.unique_uid}) moved to stage: ${stage}`, resourceId, user.id]
-    );
-    await conn.query(
-      `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_requirement_id,created_by)
-       VALUES ('resource',?,?,?,?)`,
-      [resourceId, `Moved to stage: ${stage} for Requirement — ${pair.req_title}`, reqId, user.id]
     );
 
     if (stage === 'Reject') {

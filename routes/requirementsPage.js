@@ -72,7 +72,7 @@ router.get('/requirements', async (req, res) => {
   } catch (err) {
     console.error('Fetch requirements error:', err);
     res.status(500).render('error', {
-      message: 'Unable to load requirement data right now.',
+      message: 'Database error: ' + err.message,
       user: req.session.user
     });
   }
@@ -140,7 +140,7 @@ router.get(['/results', '/requirements/results', '/view-result', '/view-results'
   } catch (err) {
     console.error('Fetch results error:', err);
     res.status(500).render('error', {
-      message: 'Unable to load results data right now.',
+      message: 'Unable to load results data right now: ' + err.message,
       user: req.session.user
     });
   }
@@ -165,7 +165,7 @@ router.get('/requirements/add', async (req, res) => {
   } catch (err) {
     console.error('Add requirement page error:', err);
     res.status(500).render('error', {
-      message: 'Unable to load requirement data right now.',
+      message: 'Database error: ' + err.message,
       user: req.session.user
     });
   }
@@ -219,7 +219,7 @@ router.get('/requirements/edit/:id', async (req, res) => {
   } catch (err) {
     console.error('Edit requirement error:', err);
     res.status(500).render('error', {
-      message: 'Unable to load requirement data right now.',
+      message: 'Database error: ' + err.message,
       user: req.session.user
     });
   }
@@ -234,10 +234,6 @@ router.get('/api/requirements/:id', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM crm_requirements WHERE id = ?', [req.params.id]);
     if (!rows.length) {
       return res.status(404).json({ success: false, message: 'Requirement not found' });
-    }
-    const isAdmin = req.session.user.role === 'admin' || req.session.user.role === 'super_admin';
-    if (!isAdmin && rows[0].created_by !== req.session.user.id) {
-      return res.status(403).json({ success: false, message: 'Permission denied.' });
     }
 
     const [clients] = await pool.query('SELECT id, company_name FROM crm_clients ORDER BY company_name');
@@ -255,7 +251,7 @@ router.get('/api/requirements/:id', async (req, res) => {
       pocs
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to load requirement details.' });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -279,31 +275,20 @@ router.get('/api/pocs-by-client/:clientId', async (req, res) => {
 router.put('/api/requirements/:id', async (req, res) => {
   try {
     const reqId = req.params.id;
-    const { title, status, budget, client_id, poc_id, jd, location, r_location } = req.body;
-
-    const isAdmin = req.session.user.role === 'admin' || req.session.user.role === 'super_admin';
-    const [existing] = await pool.query('SELECT created_by FROM crm_requirements WHERE id = ?', [reqId]);
-    if (!existing.length) return res.status(404).json({ success: false, message: 'Requirement not found' });
-    if (!isAdmin && existing[0].created_by !== req.session.user.id) {
-      return res.status(403).json({ success: false, message: 'Permission denied.' });
-    }
-    if (typeof title !== 'string' || !title.trim() || title.trim().length > 500 || !['Open', 'Hold'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Valid title and status are required.' });
-    }
+    const { title, status, budget, client_id, poc_id, jd } = req.body;
 
     // Foreign Keys protection: empty strings to NULL
-    const safeClientId = client_id && client_id !== '' ? parseInt(client_id, 10) : null;
+    const safeClientId = client_id && client_id !== '' ? parseInt(client_id) : null;
     const safePocId = poc_id && poc_id !== '' ? parseInt(poc_id) : null;
     const safeJd = jd || '';
     const safeBudget = budget || '';
-    const safeLocation = (location !== undefined ? location : r_location) || null;
 
-    // Exact columns: title, status, budget, client_id, poc_id, jd, location
+    // Exact columns: title, status, budget, client_id, poc_id, jd
     await pool.query(
       `UPDATE crm_requirements 
-       SET title = ?, status = ?, budget = ?, client_id = ?, poc_id = ?, jd = ?, location = ? 
+       SET title = ?, status = ?, budget = ?, client_id = ?, poc_id = ?, jd = ? 
        WHERE id = ?`,
-      [title.trim(), status, safeBudget, safeClientId, safePocId, safeJd, safeLocation, reqId]
+      [title, status, safeBudget, safeClientId, safePocId, safeJd, reqId]
     );
 
     res.json({ success: true, message: 'Requirement updated successfully' });
