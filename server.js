@@ -77,6 +77,11 @@ app.use(session({
   }
 }));
 
+// ── Google Search Console Verification ──────────────────────────────────────
+app.get('/googleff89c58ec81210dc.html', (req, res) => {
+  res.type('text/html').send('google-site-verification: googleff89c58ec81210dc.html');
+});
+
 // ── Root redirect ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) =>
   res.redirect(req.session.user ? '/dashboard' : '/login')
