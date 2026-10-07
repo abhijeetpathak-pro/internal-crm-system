@@ -57,12 +57,18 @@ async function generateUid(conn, { vendorCode, resourceName, technology }) {
 }
 
 async function refreshResourceAvailability(conn, resourceId) {
+  if (!resourceId) return;
   const [[{ activeCount }]] = await conn.query(
     `SELECT COUNT(*) AS activeCount FROM crm_requirement_resources
      WHERE resource_id = ? AND stage NOT IN ('Reject')`,
     [resourceId]
   );
-  if (activeCount === 0) {
+  const [[{ reqCount }]] = await conn.query(
+    `SELECT COUNT(*) AS reqCount FROM crm_requirements
+     WHERE resource_id = ? AND status != 'Closed'`,
+    [resourceId]
+  );
+  if (activeCount === 0 && reqCount === 0) {
     await conn.query("UPDATE crm_resources SET status='Available' WHERE id=? AND status='Mapped'", [resourceId]);
   }
 }
@@ -91,7 +97,7 @@ router.get('/', async (req, res) => {
     requirements.forEach(reqItem => {
       const dateKey = reqItem.created_at ? new Date(reqItem.created_at).toISOString().split('T')[0] : 'Other';
       const label = reqItem.created_at ? new Date(reqItem.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'LONG', year: 'numeric' }).toUpperCase() : 'OTHER';
-      
+
       if (!groupsMap[dateKey]) {
         groupsMap[dateKey] = { key: dateKey, label: label, requirements: [] };
       }
@@ -123,9 +129,9 @@ router.get('/share/:id', async (req, res) => {
     `, [req.params.id]);
 
     if (!rows.length) return res.status(404).send('Requirement not found');
-    
+
     const requirement = rows[0];
-    
+
     // Ek public view render karo jisme login ki zaroorat na ho
     res.render('requirements/public-share', { requirement });
   } catch (err) {
@@ -137,7 +143,7 @@ router.get('/share/:id', async (req, res) => {
 // ======================== GET REQUIREMENT DETAIL / API ========================
 router.get('/:id', async (req, res) => {
   const reqId = req.params.id;
-  
+
   try {
     const [reqRows] = await pool.query(`
       SELECT r.*, 
@@ -169,14 +175,14 @@ router.get('/:id', async (req, res) => {
     if (req.xhr || req.headers.accept?.indexOf('json') > -1 || req.originalUrl.startsWith('/api/')) {
       const [clients] = await pool.query('SELECT id, company_name FROM crm_clients ORDER BY company_name');
       const [pocs] = await pool.query('SELECT id, poc_name, client_id FROM crm_pocs ORDER BY poc_name');
-      
-      return res.json({ 
+
+      return res.json({
         requirement: {
           ...requirement,
           location: requirement.location || ''
-        }, 
-        clients, 
-        pocs 
+        },
+        clients,
+        pocs
       });
     }
 
@@ -238,13 +244,13 @@ router.post('/', async (req, res) => {
 // ======================== UPDATE REQUIREMENT ========================
 router.put('/:id', async (req, res) => {
   const { client_id, poc_id, title, jd, status, budget, r_location } = req.body;
-  
+
   if (!title) {
     return res.status(400).json({ success: false, error: 'title is required.' });
   }
-  
+
   const finalStatus = status && REQ_STATUSES.includes(status) ? status : 'Open';
-  
+
   try {
     const user = req.session.user;
     if (user && user.role === 'emp') {
@@ -252,12 +258,12 @@ router.put('/:id', async (req, res) => {
       if (!owner.length) return res.status(404).json({ success: false, error: 'Not found.' });
       if (owner[0].created_by !== user.id) return res.status(403).json({ success: false, error: 'Permission denied.' });
     }
-    
+
     await pool.query(
       'UPDATE crm_requirements SET client_id=?, poc_id=?, title=?, jd=?, status=?, budget=?, location=? WHERE id=?',
       [client_id || null, poc_id || null, title, jd || null, finalStatus, budget || null, r_location || null, req.params.id]
     );
-    
+
     res.json({ success: true, message: 'Requirement updated successfully!' });
   } catch (err) {
     console.error('PUT requirement error:', err);
@@ -307,29 +313,30 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+
 // ======================== TOGGLE SHARE ========================
 router.post('/:id/toggle-share', async (req, res) => {
   const reqId = req.params.id;
   const { is_shared } = req.body;
-  
+
   try {
     const sharedVal = (is_shared === '1' || is_shared === 1 || is_shared === true) ? 1 : 0;
-    
+
     await pool.query('UPDATE crm_requirements SET is_shared = ? WHERE id = ?', [sharedVal, reqId]);
-    
+
     const message = sharedVal ? '✅ Requirement marked as Shared' : '❌ Requirement marked as Not Shared';
     await pool.query(
       `INSERT INTO crm_activity_logs (entity_type, entity_id, note, created_by)
        VALUES ('requirement', ?, ?, ?)`,
       [reqId, message, req.session.user ? req.session.user.id : 1]
     );
-    
-    res.json({ 
-      ok: true, 
+
+    res.json({
+      ok: true,
       is_shared: sharedVal,
       message: message
     });
-    
+
   } catch (err) {
     console.error('Toggle share error:', err);
     res.status(500).json({ error: 'Failed to update share status: ' + err.message });
@@ -448,11 +455,11 @@ router.post('/:id/map-resource', (req, res, next) => {
           experience_years, salary_lpm, created_by)
          VALUES (?,?,?,?,?,?,'Available',?,?,?,?,?,?,?,?,?,?,?)`,
         [
-          uniqueUid, 
-          b.resource_name, 
-          b.title || null, 
-          b.skills, 
-          cvPath, 
+          uniqueUid,
+          b.resource_name,
+          b.title || null,
+          b.skills,
+          cvPath,
           type,
           type === 'Vendor' ? resolvedVendorId : null,
           type === 'Vendor' ? (b.poc_id || null) : null,
@@ -460,7 +467,7 @@ router.post('/:id/map-resource', (req, res, next) => {
           type === 'In-House' ? (b.contact_number || null) : null,
           type === 'In-House' ? (b.email || null) : null,
           type === 'In-House' ? (b.linkedin || null) : null,
-          b.preferred_location || null, 
+          b.preferred_location || null,
           b.current_location || null,
           experience_years,
           salary_lpm,
@@ -560,6 +567,120 @@ router.patch('/:id/resource/:resourceId/stage', async (req, res) => {
   } finally {
     conn.release();
   }
+});
+
+// ======================== REMOVE / UNMAP RESOURCE FROM REQUIREMENT ========================
+async function handleUnmapResource(req, res, reqId, targetResourceId) {
+  const user = req.session.user;
+
+  if (user && user.role === 'emp') {
+    const [owner] = await pool.query('SELECT created_by FROM crm_requirements WHERE id=?', [reqId]);
+    if (!owner.length) return res.status(404).json({ error: 'Requirement not found.' });
+    if (owner[0].created_by !== user.id) return res.status(403).json({ error: 'Permission denied.' });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [reqRows] = await conn.query(
+      'SELECT id, title, resource_id FROM crm_requirements WHERE id=? FOR UPDATE',
+      [reqId]
+    );
+    if (!reqRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Requirement not found.' });
+    }
+    const requirement = reqRows[0];
+    const resourceId = targetResourceId || requirement.resource_id;
+
+    if (!resourceId) {
+      // Clear any orphaned mappings if no specific resource
+      await conn.query('DELETE FROM crm_requirement_resources WHERE requirement_id=?', [reqId]);
+      await conn.query('UPDATE crm_requirements SET resource_id=NULL WHERE id=?', [reqId]);
+      await conn.commit();
+      return res.json({ ok: true, message: 'Requirement unmapped successfully.' });
+    }
+
+    // Get resource details
+    const [resRows] = await conn.query(
+      'SELECT id, resource_name, unique_uid FROM crm_resources WHERE id=?',
+      [resourceId]
+    );
+    const resource = resRows.length ? resRows[0] : { id: resourceId, resource_name: `Resource #${resourceId}`, unique_uid: '' };
+
+    // 1. Delete mapping row from crm_requirement_resources
+    await conn.query(
+      'DELETE FROM crm_requirement_resources WHERE requirement_id=? AND resource_id=?',
+      [reqId, resourceId]
+    );
+
+    // 2. If requirement's direct resource_id matches this resource, update it
+    if (String(requirement.resource_id) === String(resourceId)) {
+      const [otherMapped] = await conn.query(
+        'SELECT resource_id FROM crm_requirement_resources WHERE requirement_id=? ORDER BY created_at DESC LIMIT 1',
+        [reqId]
+      );
+      const newReqResourceId = otherMapped.length ? otherMapped[0].resource_id : null;
+      await conn.query('UPDATE crm_requirements SET resource_id=? WHERE id=?', [newReqResourceId, reqId]);
+    }
+
+    // 3. Recalculate resource availability status
+    await refreshResourceAvailability(conn, resourceId);
+
+    // 4. Activity log for requirement
+    await conn.query(
+      `INSERT INTO crm_activity_logs (entity_type, entity_id, note, ref_resource_id, created_by)
+       VALUES ('requirement', ?, ?, ?, ?)`,
+      [
+        reqId,
+        `Unmapped profile: ${resource.resource_name} (${resource.unique_uid || 'N/A'})`,
+        resourceId,
+        user ? user.id : null
+      ]
+    );
+
+    // 5. Activity log for resource
+    await conn.query(
+      `INSERT INTO crm_activity_logs (entity_type, entity_id, note, ref_requirement_id, created_by)
+       VALUES ('resource', ?, ?, ?, ?)`,
+      [
+        resourceId,
+        `Unmapped from Requirement #${reqId}${requirement.title ? ' (' + requirement.title + ')' : ''}`,
+        reqId,
+        user ? user.id : null
+      ]
+    );
+
+    await conn.commit();
+    res.json({ ok: true, message: 'Resource unmapped successfully.' });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Unmap requirement resource error:', err);
+    res.status(500).json({ error: 'Failed to unmap resource: ' + err.message });
+  } finally {
+    conn.release();
+  }
+}
+
+// DELETE /api/requirements/:id/resource/:resourceId
+router.delete('/:id/resource/:resourceId', (req, res) => {
+  return handleUnmapResource(req, res, req.params.id, req.params.resourceId);
+});
+
+// POST /api/requirements/:id/resource/:resourceId/remove
+router.post('/:id/resource/:resourceId/remove', (req, res) => {
+  return handleUnmapResource(req, res, req.params.id, req.params.resourceId);
+});
+
+// POST /api/requirements/:id/unmap
+router.post('/:id/unmap', (req, res) => {
+  return handleUnmapResource(req, res, req.params.id, req.body.resource_id || null);
+});
+
+// PUT /api/requirements/:id/unmap
+router.put('/:id/unmap', (req, res) => {
+  return handleUnmapResource(req, res, req.params.id, req.body.resource_id || null);
 });
 
 module.exports = router;

@@ -162,6 +162,18 @@
         background: #f0fdf4;
         border-color: #86efac;
       }
+
+      .remove-profile-btn {
+        font-size: 0.72rem;
+        border-radius: 6px;
+        padding: 2px 8px;
+        transition: all 0.15s ease-in-out;
+      }
+
+      .remove-profile-btn:hover {
+        background-color: #dc3545;
+        color: #fff;
+      }
     </style>
 </head>
 
@@ -181,15 +193,18 @@
               <%= requirement.status %>
             </span>
             <% if(requirement.mapped_resource_name){ %>
-              <span class="badge ms-1" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+              <span class="badge ms-1 d-inline-flex align-items-center gap-1"
+                style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
                 <i class="fa-solid fa-link me-1"></i>
-                <%= requirement.mapped_resource_name %> (<%= requirement.mapped_uid %>)
+                <span>
+                  <%= requirement.mapped_resource_name %> (<%= requirement.mapped_uid %>)
+                </span>
               </span>
               <% } %>
           </div>
 
           <div class="d-flex align-items-center gap-2">
-            <!-- WhatsApp Share Button (Fixed using data attributes to safely pass multi-line JD) -->
+            <!-- WhatsApp Share Button -->
             <button type="button" class="action-btn share-whatsapp-btn" data-id="<%= requirement.id %>"
               data-title="<%= requirement.title %>" data-company="<%= requirement.company_name || '' %>"
               data-location="<%= requirement.location || '' %>" data-budget="<%= requirement.budget || '' %>"
@@ -336,18 +351,18 @@
                         type="text" name="skills" class="form-control form-control-sm" placeholder="Python, Django, AWS"
                         required></div>
 
-                    <div class="col-md-4"><label class="form-label small">Experience (yrs)</label>
+                    <div class="col-md-4"><label class="form-label small">Experience (yrs) *</label>
                       <input type="number" name="experience_years" class="form-control form-control-sm" step="0.5"
-                        min="0" placeholder="e.g. 5">
+                        min="0" placeholder="e.g. 5" required>
                     </div>
 
-                    <div class="col-md-4"><label class="form-label small">Salary (LPM)</label>
+                    <div class="col-md-4"><label class="form-label small">Salary (LPM) *</label>
                       <input type="number" name="salary_lpm" class="form-control form-control-sm" step="0.1"
-                        placeholder="e.g. 12.5">
+                        placeholder="e.g. 12.5" required>
                     </div>
 
-                    <div class="col-md-6"><label class="form-label small">Current Location</label><input type="text"
-                        name="current_location" class="form-control form-control-sm"></div>
+                    <div class="col-md-6"><label class="form-label small">Current Location *</label><input type="text"
+                        name="current_location" class="form-control form-control-sm" required></div>
                     <div class="col-md-6"><label class="form-label small">Preferred Location</label><input type="text"
                         name="preferred_location" class="form-control form-control-sm"></div>
                     <div class="col-md-4">
@@ -358,19 +373,20 @@
                       </select>
                     </div>
                     <div class="col-md-8">
-                      <label class="form-label small">CV Upload (PDF/DOC/DOCX)</label>
-                      <input type="file" name="cv" class="form-control form-control-sm" accept=".pdf,.doc,.docx">
+                      <label class="form-label small">CV Upload (PDF/DOC/DOCX) *</label>
+                      <input type="file" name="cv" class="form-control form-control-sm" accept=".pdf,.doc,.docx"
+                        required>
                     </div>
 
                     <div id="nrInhouse" class="col-12 row g-2">
                       <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text"
                           name="managed_by" class="form-control form-control-sm"></div>
-                      <div class="col-md-4"><label class="form-label small">Phone</label><input type="text"
-                          name="contact_number" class="form-control form-control-sm"></div>
-                      <div class="col-md-4"><label class="form-label small">Email</label><input type="email"
-                          name="email" class="form-control form-control-sm"></div>
-                      <div class="col-md-6"><label class="form-label small">LinkedIn</label><input type="text"
-                          name="linkedin" class="form-control form-control-sm"></div>
+                      <div class="col-md-4"><label class="form-label small">Phone *</label><input type="text"
+                          name="contact_number" class="form-control form-control-sm" required></div>
+                      <div class="col-md-4"><label class="form-label small">Email *</label><input type="email"
+                          name="email" class="form-control form-control-sm" required></div>
+                      <div class="col-md-6"><label class="form-label small">LinkedIn *</label><input type="text"
+                          name="linkedin" class="form-control form-control-sm" required></div>
                     </div>
 
                     <div id="nrVendor" class="col-12 row g-2 d-none">
@@ -454,11 +470,14 @@
                   <div class="d-flex flex-column gap-2" style="max-height:520px;overflow-y:auto">
                     <% resourcesSent.forEach(function(rs,i){ %>
                       <div class="p-2 rounded border" style="background:#fdf2f2">
-                        <div class="d-flex align-items-center justify-content-between"
-                          onclick="window.location='/resources/<%= rs.id %>'" style="cursor:pointer">
-                          <div>
-                            <div class="small fw-semibold">
+                        <div class="d-flex align-items-center justify-content-between">
+                          <div onclick="window.location='/resources/<%= rs.id %>'" style="cursor:pointer"
+                            class="flex-grow-1 me-2">
+                            <div class="small fw-semibold text-dark">
                               <%= i+1 %>. <%= rs.resource_name %>
+                              <% if(rs.unique_uid){ %>
+                                <span class="text-secondary fw-normal font-monospace small">(<%= rs.unique_uid %>)</span>
+                              <% } %>
                             </div>
                             <div class="small text-secondary">
                               <%= rs.skills?(rs.skills.split(',')[0].trim()):'—' %>
@@ -467,7 +486,16 @@
                               <%= rs.vendor_name||'In-House' %>
                             </div>
                           </div>
-                          <i class="fa-solid fa-chevron-right text-secondary small"></i>
+                          <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="btn btn-outline-danger remove-profile-btn"
+                              data-resource-id="<%= rs.id %>" data-resource-name="<%= rs.resource_name %>"
+                              title="Remove profile from this requirement">
+                              <i class="fa-solid fa-trash-can me-1"></i>Remove
+                            </button>
+                            <a href="/resources/<%= rs.id %>" class="text-secondary small p-1" title="View Profile">
+                              <i class="fa-solid fa-chevron-right"></i>
+                            </a>
+                          </div>
                         </div>
                         <div class="stage-btns d-flex flex-wrap gap-1 mt-2" data-resource-id="<%= rs.id %>">
                           <% ['SR','L1','L2'].forEach(function(st){ %>
@@ -496,12 +524,17 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 
+    <!-- ============================================================ -->
+    <!-- ✅ FIXED: EJS variables injected into JS                     -->
+    <!-- ============================================================ -->
     <script>
       const REQ_ID = <%= requirement.id %>;
       const REQ_TITLE = <%- JSON.stringify(requirement.title || '') %>;
       const CURRENT_SHARE_STATUS = <%= requirement.is_shared == 1 ? 1 : 0 %>;
+    </script>
 
-      // WhatsApp Share Event Listener (Secure data-attributes decoding)
+    <script>
+      // WhatsApp Share Event Listener
       document.addEventListener('click', function (event) {
         const shareBtn = event.target.closest('.share-whatsapp-btn');
         if (shareBtn) {
@@ -638,6 +671,45 @@
             }
           });
         });
+      });
+
+      // ✅ Remove Profile from Requirement
+      document.addEventListener('click', async function (event) {
+        const removeBtn = event.target.closest('.remove-profile-btn');
+        if (!removeBtn) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const resourceId = removeBtn.getAttribute('data-resource-id');
+        const resourceName = removeBtn.getAttribute('data-resource-name') || 'this profile';
+
+        const confirmRemove = confirm(`Are you sure you want to remove "${resourceName}" from this requirement?`);
+        if (!confirmRemove) return;
+
+        const originalHtml = removeBtn.innerHTML;
+        removeBtn.disabled = true;
+        removeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+          const res = await fetch('/api/requirements/' + REQ_ID + '/resource/' + resourceId, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          const data = await res.json();
+          if (res.ok) {
+            location.reload();
+          } else {
+            alert(data.error || data.message || 'Failed to remove profile.');
+            removeBtn.disabled = false;
+            removeBtn.innerHTML = originalHtml;
+          }
+        } catch (error) {
+          alert('Network error. Please try again.');
+          removeBtn.disabled = false;
+          removeBtn.innerHTML = originalHtml;
+        }
       });
 
       document.getElementById('actForm').addEventListener('submit', async function (e) {

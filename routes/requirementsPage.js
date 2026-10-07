@@ -317,7 +317,7 @@ router.delete('/api/requirements/:id', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized delete action' });
     }
 
-    // ── ✅ FIXED: Table name sahi karo (singular) ──
+    // ── ✅ FIXED: Table name singular ──
     try {
       await pool.query('DELETE FROM crm_requirement_resources WHERE requirement_id = ?', [reqId]);
     } catch(e) { console.log('Mapping table cleanup skipped:', e.message); }
@@ -385,15 +385,15 @@ router.get('/requirements/:id', async (req, res) => {
       console.log('Activity log fetch fallback:', e.message); 
     }
 
-    // ── ✅ FIXED: RESOURCES SENT ──
-    // Table name: crm_requirement_resources (singular)
+    // ── RESOURCES SENT ──
     let resourcesSent = [];
     try {
       const [resSentRows] = await pool.query(
         `SELECT res.id, res.resource_name, res.unique_uid, res.skills, 
-                res.status, rr.stage
-         FROM crm_requirement_resources rr   -- ✅ FIXED: singular
+                res.status, rr.stage, v.vendor_name
+         FROM crm_requirement_resources rr
          JOIN crm_resources res ON res.id = rr.resource_id
+         LEFT JOIN crm_vendors v ON res.vendor_id = v.id
          WHERE rr.requirement_id = ?
          ORDER BY rr.created_at DESC`, 
         [req.params.id]
