@@ -4,8 +4,16 @@
 <head>
   <%- include('../partials/head',{title:'Requirements — CWA CRM'}) %>
     <style>
-      .table-wrap {
-        overflow: visible !important;
+      @media (min-width: 992px) {
+        .table-wrap {
+          overflow: visible !important;
+        }
+      }
+      @media (max-width: 991.98px) {
+        .table-wrap {
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch;
+        }
       }
 
       .req-table th,
@@ -210,8 +218,8 @@
           <button class="btn btn-sm btn-outline-secondary" onclick="resetShareFilter()">Reset</button>
         </div>
 
-        <div class="mb-3 d-flex align-items-center">
-          <div class="input-group input-group-sm" style="max-width:350px">
+        <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+          <div class="input-group input-group-sm" style="max-width:350px;flex:1 1 220px;">
             <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-danger"
                 style="font-size:.8rem"></i></span>
             <input type="text" id="reqSearchInput" class="form-control"
@@ -219,7 +227,7 @@
             <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()"><i
                 class="fa-solid fa-times"></i></button>
           </div>
-          <span class="badge bg-secondary ms-2" id="resultCount">0 results</span>
+          <span class="badge bg-secondary" id="resultCount">0 results</span>
         </div>
 
         <% if(!groups || !groups.length){ %>

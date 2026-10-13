@@ -8,12 +8,12 @@
   <div class="row g-3 mb-4" id="statCards"><div class="col-12"><div class="text-secondary small">Loading stats...</div></div></div>
 
   <div class="row g-3 mb-3">
-    <div class="col-lg-8"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">Requirements — last 30 days</div><canvas id="reqChart"></canvas></div></div>
-    <div class="col-lg-4"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">This Month Breakdown</div><canvas id="bdChart"></canvas><div id="bdLeg" class="d-flex flex-column gap-1 mt-2 small"></div></div></div>
+    <div class="col-lg-8"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">Requirements — last 30 days</div><div style="position:relative;height:240px;width:100%"><canvas id="reqChart"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">This Month Breakdown</div><div style="position:relative;height:180px;width:100%"><canvas id="bdChart"></canvas></div><div id="bdLeg" class="d-flex flex-column gap-1 mt-2 small"></div></div></div>
   </div>
   <div class="row g-3 mb-4">
-    <div class="col-lg-6"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">Leads — last 7 days</div><canvas id="leadsChart"></canvas></div></div>
-    <div class="col-lg-6"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">Resource Split</div><canvas id="splitChart" style="max-height:200px"></canvas><div id="splitLeg" class="d-flex gap-3 justify-content-center mt-2 small"></div></div></div>
+    <div class="col-lg-6"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">Leads — last 7 days</div><div style="position:relative;height:200px;width:100%"><canvas id="leadsChart"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card stat-card p-3 h-100"><div class="fw-semibold mb-2">Resource Split</div><div style="position:relative;height:170px;width:100%"><canvas id="splitChart"></canvas></div><div id="splitLeg" class="d-flex gap-3 justify-content-center mt-2 small"></div></div></div>
   </div>
 
   <div class="card stat-card p-3">
@@ -21,15 +21,22 @@
       <span class="fw-semibold">Recent Requirements</span>
       <a href="/requirements" class="btn btn-sm btn-outline-primary">View All</a>
     </div>
-    <table class="table table-sm align-middle mb-0">
-      <thead><tr class="text-secondary small text-uppercase"><th>Title</th><th>Client</th><th>Status</th><th>Budget</th><th>Added</th></tr></thead>
-      <tbody id="recentReqs"><tr><td colspan="5" class="text-center text-secondary py-3">Loading...</td></tr></tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr class="text-secondary small text-uppercase"><th>Title</th><th>Client</th><th>Status</th><th>Budget</th><th>Added</th></tr></thead>
+        <tbody id="recentReqs"><tr><td colspan="5" class="text-center text-secondary py-3">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<script src="/js/chart.umd.min.js"></script>
+<script>
+if (typeof Chart === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"><\/script>');
+}
+</script>
 <script>
 (async()=>{
   const RED='#C0392B',GREEN='#22c55e',YELLOW='#f59e0b',TEAL='#14b8a6',PURPLE='#a855f7';
@@ -64,18 +71,130 @@
       <div><div class="text-secondary" style="font-size:.78rem">${escapeHtml(c.label)}</div><div class="fw-bold fs-4">${escapeHtml(c.value)}</div></div>
     </div></div></div>`).join('');
 
-  Chart.defaults.font.family='system-ui,sans-serif';Chart.defaults.color='#6b7280';
-  new Chart(document.getElementById('reqChart'),{type:'line',data:{labels:charts.reqTrend.labels,datasets:[{label:'Requirements',data:charts.reqTrend.data,borderColor:RED,backgroundColor:'rgba(192,57,43,.08)',tension:.4,fill:true,pointRadius:3}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}});
-  const bd=charts.workBreakdown;
-  new Chart(document.getElementById('bdChart'),{type:'doughnut',data:{labels:['Requirements','Resources','Leads'],datasets:[{data:[bd.requirements,bd.resources,bd.leads],backgroundColor:[RED,GREEN,YELLOW],borderWidth:2,borderColor:'#fff'}]},options:{cutout:'65%',plugins:{legend:{display:false}}}});
-  document.getElementById('bdLeg').innerHTML=[['Requirements',bd.requirements,RED],['Resources',bd.resources,GREEN],['Leads',bd.leads,YELLOW]].map(([l,v,c])=>`<div class="d-flex align-items-center gap-2"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>${escapeHtml(l)}<strong class="ms-auto">${escapeHtml(v)}</strong></div>`).join('');
-  new Chart(document.getElementById('leadsChart'),{type:'bar',data:{labels:charts.leadsTrend.labels,datasets:[{label:'Leads',data:charts.leadsTrend.data,backgroundColor:'rgba(245,158,11,.75)',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}});
-  const sp=charts.resourceSplit;
-  new Chart(document.getElementById('splitChart'),{type:'pie',data:{labels:['In-House','Vendor'],datasets:[{data:[sp.inHouse,sp.vendor],backgroundColor:[TEAL,PURPLE],borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{display:false}}}});
-  document.getElementById('splitLeg').innerHTML=[['In-House',sp.inHouse,TEAL],['Vendor',sp.vendor,PURPLE]].map(([l,v,c])=>`<div class="d-flex align-items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block"></span>${escapeHtml(l)}: <strong>${escapeHtml(v)}</strong></div>`).join('');
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = 'system-ui,sans-serif';
+    Chart.defaults.color = '#6b7280';
 
-  try{const rr=await(await fetch('/api/requirements/recent')).json();
-    document.getElementById('recentReqs').innerHTML=rr.length?rr.map(r=>{const id=Number.parseInt(r.id,10);const href=Number.isInteger(id)?`/requirements/${id}`:'#';const status=r.status==='Hold'?'Hold':'Open';return `<tr><td><a href="${href}" class="text-decoration-none fw-semibold" style="color:#1A1A1A">${escapeHtml(r.title)}</a></td><td class="text-secondary small">${escapeHtml(r.company_name||'—')}</td><td><span class="badge" style="background:${status==='Hold'?'#f3f4f6':'#dcfce7'};color:${status==='Hold'?'#6b7280':'#15803d'}">${escapeHtml(status)}</span></td><td class="text-secondary small">${escapeHtml(r.budget||'—')}</td><td class="text-secondary small">${escapeHtml(new Date(r.created_at).toLocaleDateString('en-IN'))}</td></tr>`}).join(''):'<tr><td colspan="5" class="text-center text-secondary py-3">No requirements yet.</td></tr>';}catch(e){}
+    const reqEl = document.getElementById('reqChart');
+    if (reqEl) {
+      new Chart(reqEl, {
+        type: 'line',
+        data: {
+          labels: charts.reqTrend.labels,
+          datasets: [{
+            label: 'Requirements',
+            data: charts.reqTrend.data,
+            borderColor: RED,
+            backgroundColor: 'rgba(192,57,43,.08)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    const bd = charts.workBreakdown;
+    const bdEl = document.getElementById('bdChart');
+    if (bdEl) {
+      new Chart(bdEl, {
+        type: 'doughnut',
+        data: {
+          labels: ['Requirements', 'Resources', 'Leads'],
+          datasets: [{
+            data: [bd.requirements, bd.resources, bd.leads],
+            backgroundColor: [RED, GREEN, YELLOW],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: { legend: { display: false } }
+        }
+      });
+      document.getElementById('bdLeg').innerHTML = [
+        ['Requirements', bd.requirements, RED],
+        ['Resources', bd.resources, GREEN],
+        ['Leads', bd.leads, YELLOW]
+      ].map(([l, v, c]) => `<div class="d-flex align-items-center gap-2"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>${escapeHtml(l)}<strong class="ms-auto">${escapeHtml(v)}</strong></div>`).join('');
+    }
+
+    const leadsEl = document.getElementById('leadsChart');
+    if (leadsEl) {
+      new Chart(leadsEl, {
+        type: 'bar',
+        data: {
+          labels: charts.leadsTrend.labels,
+          datasets: [{
+            label: 'Leads',
+            data: charts.leadsTrend.data,
+            backgroundColor: 'rgba(245,158,11,.75)',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    const sp = charts.resourceSplit;
+    const splitEl = document.getElementById('splitChart');
+    if (splitEl) {
+      new Chart(splitEl, {
+        type: 'pie',
+        data: {
+          labels: ['In-House', 'Vendor'],
+          datasets: [{
+            data: [sp.inHouse, sp.vendor],
+            backgroundColor: [TEAL, PURPLE],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } }
+        }
+      });
+      document.getElementById('splitLeg').innerHTML = [
+        ['In-House', sp.inHouse, TEAL],
+        ['Vendor', sp.vendor, PURPLE]
+      ].map(([l, v, c]) => `<div class="d-flex align-items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block"></span>${escapeHtml(l)}: <strong>${escapeHtml(v)}</strong></div>`).join('');
+    }
+  }
+
+  try {
+    const resRecent = await fetch('/api/requirements/recent');
+    if (resRecent.ok) {
+      const rr = await resRecent.json();
+      document.getElementById('recentReqs').innerHTML = Array.isArray(rr) && rr.length ? rr.map(r => {
+        const id = Number.parseInt(r.id, 10);
+        const href = Number.isInteger(id) ? `/requirements/${id}` : '#';
+        const status = r.status === 'Hold' ? 'Hold' : 'Open';
+        return `<tr><td><a href="${href}" class="text-decoration-none fw-semibold" style="color:#1A1A1A">${escapeHtml(r.title)}</a></td><td class="text-secondary small">${escapeHtml(r.company_name || '—')}</td><td><span class="badge" style="background:${status === 'Hold' ? '#f3f4f6' : '#dcfce7'};color:${status === 'Hold' ? '#6b7280' : '#15803d'}">${escapeHtml(status)}</span></td><td class="text-secondary small">${escapeHtml(r.budget || '—')}</td><td class="text-secondary small">${escapeHtml(new Date(r.created_at).toLocaleDateString('en-IN'))}</td></tr>`;
+      }).join('') : '<tr><td colspan="5" class="text-center text-secondary py-3">No requirements yet.</td></tr>';
+    }
+  } catch(e) {}
 })();
 </script>
 </body></html>

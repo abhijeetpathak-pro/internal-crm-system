@@ -16,54 +16,56 @@
     </div>
     
     <div class="card stat-card p-0">
-      <table class="table align-middle mb-0">
-        <thead>
-          <tr class="text-secondary small text-uppercase border-bottom">
-            <th class="ps-3">Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Source</th>
-            <th>Added</th>
-            <th class="pe-3"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <% leads.forEach(l => { %>
-          <tr id="lrow-<%= l.id %>">
-            <td class="ps-3 fw-semibold">
-              <a href="/leads/<%= l.id %>" class="text-decoration-none" style="color:#1A1A1A"><%= l.name %></a>
-            </td>
-            <td class="small text-secondary"><%= l.email || '—' %></td>
-            <td class="small text-secondary"><%= l.phone || '—' %></td>
-            <td>
-              <span class="badge rounded-pill" style="background:#fefce8;color:#854d0e"><%= l.source %></span>
-            </td>
-            <td class="small text-secondary"><%= new Date(l.created_at).toLocaleDateString('en-IN') %></td>
-            <td class="pe-3 text-end">
-              <div class="dropdown">
-                <button class="btn btn-sm btn-light border rounded-circle edit-btn" 
-                        style="width:32px;height:32px;padding:0" 
-                        data-bs-toggle="dropdown"
-                        data-lead='<%= JSON.stringify(l) %>'>
-                  <i class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                  <li><a class="dropdown-item" href="/leads/<%= l.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View</a></li>
-                  <li><a class="dropdown-item edit-link" href="#"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item text-danger" href="#" onclick="delLead(<%= l.id %>);return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-          <% }) %>
-          <% if (!leads.length) { %>
-          <tr>
-            <td colspan="6" class="text-center py-4 text-secondary">No leads yet.</td>
-          </tr>
-          <% } %>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr class="text-secondary small text-uppercase border-bottom">
+              <th class="ps-3">Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Source</th>
+              <th>Added</th>
+              <th class="pe-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% leads.forEach(l => { %>
+            <tr id="lrow-<%= l.id %>">
+              <td class="ps-3 fw-semibold">
+                <a href="/leads/<%= l.id %>" class="text-decoration-none" style="color:#1A1A1A"><%= l.name %></a>
+              </td>
+              <td class="small text-secondary"><%= l.email || '—' %></td>
+              <td class="small text-secondary"><%= l.phone || '—' %></td>
+              <td>
+                <span class="badge rounded-pill" style="background:#fefce8;color:#854d0e"><%= l.source %></span>
+              </td>
+              <td class="small text-secondary"><%= new Date(l.created_at).toLocaleDateString('en-IN') %></td>
+              <td class="pe-3 text-end">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border rounded-circle edit-btn" 
+                          style="width:32px;height:32px;padding:0" 
+                          data-bs-toggle="dropdown"
+                          data-lead='<%= JSON.stringify(l) %>'>
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                    <li><a class="dropdown-item" href="/leads/<%= l.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View</a></li>
+                    <li><a class="dropdown-item edit-link" href="#"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="delLead(<%= l.id %>);return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <% }) %>
+            <% if (!leads.length) { %>
+            <tr>
+              <td colspan="6" class="text-center py-4 text-secondary">No leads yet.</td>
+            </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 

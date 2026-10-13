@@ -54,7 +54,7 @@
   <div class="main-content">
     <%- include('../partials/topbar',{user}) %>
 
-    <div class="d-flex justify-content-between align-items-start mb-3">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3">
       <div>
         <h4 class="fw-semibold mb-1"><%= resource.resource_name %></h4>
         <div class="d-flex gap-2 flex-wrap">
@@ -74,10 +74,10 @@
 
     <div class="card stat-card p-3 mb-3">
       <div class="row g-2 small">
-        <div class="col-md-4"><span class="text-secondary">Title:</span> <strong><%= resource.title||'—' %></strong></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Title:</span> <strong><%= resource.title||'—' %></strong></div>
         
         <!-- ✅ FIXED: Experience Section -->
-        <div class="col-md-4">
+        <div class="col-6 col-md-4">
           <span class="text-secondary">Experience:</span> 
           <strong>
             <% 
@@ -87,18 +87,18 @@
           </strong>
         </div>
         
-        <div class="col-md-4"><span class="text-secondary">Skills:</span> <%= resource.skills||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Salary:</span> <%= resource.salary_lpm ? resource.salary_lpm + ' LPM' : '—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Current Location:</span> <%= resource.current_location||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Preferred Location:</span> <%= resource.preferred_location||'—' %></div>
+        <div class="col-12 col-md-4"><span class="text-secondary">Skills:</span> <%= resource.skills||'—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Salary:</span> <%= resource.salary_lpm ? resource.salary_lpm + ' LPM' : '—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Current Location:</span> <%= resource.current_location||'—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Preferred Location:</span> <%= resource.preferred_location||'—' %></div>
         <% if(resource.type==='Vendor'){ %>
-        <div class="col-md-4"><span class="text-secondary">Vendor:</span> <%= resource.vendor_name||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Vendor POC:</span> <%= resource.poc_name||'—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Vendor:</span> <%= resource.vendor_name||'—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Vendor POC:</span> <%= resource.poc_name||'—' %></div>
         <% }else{ %>
-        <div class="col-md-4"><span class="text-secondary">Managed By:</span> <%= resource.managed_by||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Phone:</span> <%= resource.contact_number||'—' %></div>
-        <div class="col-md-4"><span class="text-secondary">Email:</span> <%= resource.email||'—' %></div>
-        <% if(resource.linkedin){ %><div class="col-md-4"><span class="text-secondary">LinkedIn:</span> <a href="<%= resource.linkedin %>" target="_blank" style="color:#C0392B">Profile</a></div><% } %>
+        <div class="col-6 col-md-4"><span class="text-secondary">Managed By:</span> <%= resource.managed_by||'—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Phone:</span> <%= resource.contact_number||'—' %></div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Email:</span> <%= resource.email||'—' %></div>
+        <% if(resource.linkedin){ %><div class="col-6 col-md-4"><span class="text-secondary">LinkedIn:</span> <a href="<%= resource.linkedin %>" target="_blank" style="color:#C0392B">Profile</a></div><% } %>
         <% } %>
       </div>
       

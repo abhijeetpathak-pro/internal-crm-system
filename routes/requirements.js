@@ -3,6 +3,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const pool = require('../db'); // Correct relative path to root db.js
+const { requireLogin } = require('../middleware/auth'); // ✅ ADDED
+
+// ✅ Global auth guard for this router
+router.use(requireLogin);
 
 // ======================== MULTER CONFIG ========================
 const fs = require('fs');
@@ -20,7 +24,18 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${safe}`);
   }
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });;
+
+// ✅ File filter added
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.doc', '.docx'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('Only PDF, DOC, DOCX files are allowed'));
+  }
+});
 
 // ======================== CONSTANTS ========================
 const REQ_STATUSES = ['Open', 'Hold'];
@@ -118,7 +133,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-//==============================SHARE REQUIREMENT  DETAIL / API ===============
+// ============================== SHARE REQUIREMENT DETAIL / API ===============
 router.get('/share/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -131,12 +146,31 @@ router.get('/share/:id', async (req, res) => {
     if (!rows.length) return res.status(404).send('Requirement not found');
 
     const requirement = rows[0];
-
-    // Ek public view render karo jisme login ki zaroorat na ho
     res.render('requirements/public-share', { requirement });
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
+  }
+});
+
+// ======================== GET RECENT REQUIREMENTS (DASHBOARD) ========================
+router.get('/recent', async (req, res) => {
+  try {
+    const user = req.session.user;
+    const ownFilter = user && user.role === 'emp' ? ' WHERE r.created_by = ?' : '';
+    const ownParams = user && user.role === 'emp' ? [user.id] : [];
+    const [rows] = await pool.query(`
+      SELECT r.id, r.title, r.status, r.budget, r.created_at, c.company_name
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      ${ownFilter}
+      ORDER BY r.created_at DESC
+      LIMIT 5
+    `, ownParams);
+    res.json(rows);
+  } catch (err) {
+    console.error('Recent requirements error:', err);
+    res.status(500).json([]);
   }
 });
 
@@ -313,7 +347,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-
 // ======================== TOGGLE SHARE ========================
 router.post('/:id/toggle-share', async (req, res) => {
   const reqId = req.params.id;
@@ -392,124 +425,154 @@ router.post('/:id/status', async (req, res) => {
     conn.release();
   }
 });
-//========================= requirements track l1,l2,selected 
-
 
 // ======================== MAP RESOURCE ========================
+// ✅ FIXED: Simplified middleware chain + better error handling
 router.post('/:id/map-resource', (req, res, next) => {
-  upload.single('cv')(req, res, err => { if (err) return res.status(400).json({ error: err.message }); next(); });
+  upload.single('cv')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
 }, async (req, res) => {
   const reqId = req.params.id;
 
-  const [reqRows] = await pool.query('SELECT id FROM crm_requirements WHERE id=?', [reqId]);
-  if (!reqRows.length) return res.status(404).json({ error: 'Requirement not found.' });
+  // ✅ Log incoming request for debugging
+  console.log('📥 map-resource called:', {
+    reqId,
+    contentType: req.headers['content-type'],
+    bodyKeys: Object.keys(req.body || {}),
+    hasFile: !!req.file
+  });
 
-  const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
+    const [reqRows] = await pool.query('SELECT id FROM crm_requirements WHERE id=?', [reqId]);
+    if (!reqRows.length) return res.status(404).json({ error: 'Requirement not found.' });
 
-    let resourceId;
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    if (req.body.resource_id) {
-      resourceId = parseInt(req.body.resource_id);
-      const [rRows] = await conn.query('SELECT id FROM crm_resources WHERE id=?', [resourceId]);
-      if (!rRows.length) { await conn.rollback(); return res.status(404).json({ error: 'Resource not found.' }); }
-    } else {
-      const b = req.body;
-      if (!b.resource_name || !b.skills || !b.type) {
-        await conn.rollback();
-        return res.status(400).json({ error: 'resource_name, skills, type required for new resource.' });
+      let resourceId;
+
+      // ── Case 1: Existing resource (JSON body from "Select From Database") ──
+      if (req.body.resource_id) {
+        resourceId = parseInt(req.body.resource_id);
+        const [rRows] = await conn.query('SELECT id FROM crm_resources WHERE id=?', [resourceId]);
+        if (!rRows.length) {
+          await conn.rollback();
+          return res.status(404).json({ error: 'Resource not found.' });
+        }
+      }
+      // ── Case 2: New resource (multipart/form-data from "Add New Resource") ──
+      else {
+        const b = req.body;
+        if (!b.resource_name || !b.skills || !b.type) {
+          await conn.rollback();
+          return res.status(400).json({ error: 'resource_name, skills, type required for new resource.' });
+        }
+
+        let vendorCode = 'INH';
+        let resolvedVendorId = null;
+        const type = b.type;
+
+        if (type === 'Vendor') {
+          if (!b.vendor_id) {
+            await conn.rollback();
+            return res.status(400).json({ error: 'vendor_id required for Vendor type.' });
+          }
+          const [vRows] = await conn.query('SELECT id,short_code FROM crm_vendors WHERE id=? FOR UPDATE', [b.vendor_id]);
+          if (!vRows.length) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Vendor not found.' });
+          }
+          vendorCode = sanitizeToken(vRows[0].short_code);
+          resolvedVendorId = vRows[0].id;
+        }
+
+        const technology = (b.title || '').trim() || (b.skills || '').split(',')[0];
+        const uidResult = await generateUid(conn, { vendorCode, resourceName: b.resource_name, technology });
+        if (uidResult.duplicate) {
+          await conn.rollback();
+          return res.status(409).json({
+            error: `⚠️ A duplicate was found and is not allowed. This resource already exists as ${uidResult.existingUid}.`,
+            existing_uid: uidResult.existingUid
+          });
+        }
+        const uniqueUid = uidResult.uid;
+        const cvPath = req.file ? `/uploads/cvs/${req.file.filename}` : null;
+
+        const experience_years = (b.experience_years && b.experience_years.toString().trim() !== '') ? parseFloat(b.experience_years) : null;
+        const salary_lpm = (b.salary_lpm && b.salary_lpm.toString().trim() !== '') ? parseFloat(b.salary_lpm) : null;
+        const poc_id = (type === 'Vendor' && b.poc_id && b.poc_id.toString().trim() !== '') ? parseInt(b.poc_id, 10) : null;
+
+        const [newRes] = await conn.query(
+          `INSERT INTO crm_resources
+           (unique_uid, resource_name, title, skills, cv_path, type, status, vendor_id, poc_id,
+            managed_by, contact_number, email, linkedin, preferred_location, current_location,
+            experience_years, salary_lpm, created_by)
+           VALUES (?,?,?,?,?,?,'Available',?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            uniqueUid,
+            b.resource_name,
+            b.title || null,
+            b.skills,
+            cvPath,
+            type,
+            type === 'Vendor' ? resolvedVendorId : null,
+            poc_id,
+            type === 'In-House' ? (b.managed_by || null) : null,
+            type === 'In-House' ? (b.contact_number || null) : null,
+            type === 'In-House' ? (b.email || null) : null,
+            type === 'In-House' ? (b.linkedin || null) : null,
+            b.preferred_location || null,
+            b.current_location || null,
+            experience_years,
+            salary_lpm,
+            req.session.user.id
+          ]
+        );
+        resourceId = newRes.insertId;
       }
 
-      let vendorCode = 'INH';
-      let resolvedVendorId = null;
-      const type = b.type;
-
-      if (type === 'Vendor') {
-        if (!b.vendor_id) { await conn.rollback(); return res.status(400).json({ error: 'vendor_id required for Vendor type.' }); }
-        const [vRows] = await conn.query('SELECT id,short_code FROM crm_vendors WHERE id=? FOR UPDATE', [b.vendor_id]);
-        if (!vRows.length) { await conn.rollback(); return res.status(404).json({ error: 'Vendor not found.' }); }
-        vendorCode = sanitizeToken(vRows[0].short_code);
-        resolvedVendorId = vRows[0].id;
-      }
-
-      const technology = (b.title || '').trim() || (b.skills || '').split(',')[0];
-      const uidResult = await generateUid(conn, { vendorCode, resourceName: b.resource_name, technology });
-      if (uidResult.duplicate) {
-        await conn.rollback();
-        return res.status(409).json({
-          error: `⚠️ A duplicate was found and is not allowed. This resource already exists as ${uidResult.existingUid}.`,
-          existing_uid: uidResult.existingUid
-        });
-      }
-      const uniqueUid = uidResult.uid;
-      const cvPath = req.file ? `/uploads/cvs/${req.file.filename}` : null;
-
-      const experience_years = b.experience_years || null;
-      const salary_lpm = b.salary_lpm || null;
-
-      const [newRes] = await conn.query(
-        `INSERT INTO crm_resources
-         (unique_uid, resource_name, title, skills, cv_path, type, status, vendor_id, poc_id,
-          managed_by, contact_number, email, linkedin, preferred_location, current_location,
-          experience_years, salary_lpm, created_by)
-         VALUES (?,?,?,?,?,?,'Available',?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          uniqueUid,
-          b.resource_name,
-          b.title || null,
-          b.skills,
-          cvPath,
-          type,
-          type === 'Vendor' ? resolvedVendorId : null,
-          type === 'Vendor' ? (b.poc_id || null) : null,
-          type === 'In-House' ? (b.managed_by || null) : null,
-          type === 'In-House' ? (b.contact_number || null) : null,
-          type === 'In-House' ? (b.email || null) : null,
-          type === 'In-House' ? (b.linkedin || null) : null,
-          b.preferred_location || null,
-          b.current_location || null,
-          experience_years,
-          salary_lpm,
-          req.session.user.id
-        ]
+      await conn.query('UPDATE crm_requirements SET resource_id=? WHERE id=?', [resourceId, reqId]);
+      await conn.query("UPDATE crm_resources SET status='Mapped' WHERE id=?", [resourceId]);
+      await conn.query(
+        `INSERT INTO crm_requirement_resources (requirement_id, resource_id, stage, created_by)
+         VALUES (?, ?, 'SR', ?)
+         ON DUPLICATE KEY UPDATE requirement_id = requirement_id`,
+        [reqId, resourceId, req.session.user.id]
       );
-      resourceId = newRes.insertId;
+
+      const mapNote = `Mapped to Requirement ID: ${reqId}${req.body.req_title ? ' — ' + req.body.req_title : ''}`;
+      await conn.query(
+        `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_requirement_id,created_by)
+         VALUES ('resource',?,?,?,?)`,
+        [resourceId, mapNote, reqId, req.session.user.id]
+      );
+
+      await conn.query(
+        `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_resource_id,created_by)
+         VALUES ('requirement',?,?,?,?)`,
+        [reqId, `Resource mapped to this requirement.`, resourceId, req.session.user.id]
+      );
+
+      await conn.query('UPDATE crm_requirements SET is_shared = 1 WHERE id = ?', [reqId]);
+
+      await conn.commit();
+      res.json({ ok: true, resource_id: resourceId });
+
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
     }
 
-    await conn.query('UPDATE crm_requirements SET resource_id=? WHERE id=?', [resourceId, reqId]);
-    await conn.query("UPDATE crm_resources SET status='Mapped' WHERE id=?", [resourceId]);
-    await conn.query(
-      `INSERT INTO crm_requirement_resources (requirement_id, resource_id, stage, created_by)
-       VALUES (?, ?, 'SR', ?)
-       ON DUPLICATE KEY UPDATE requirement_id = requirement_id`,
-      [reqId, resourceId, req.session.user.id]
-    );
-
-    const mapNote = `Mapped to Requirement ID: ${reqId}${req.body.req_title ? ' — ' + req.body.req_title : ''}`;
-    await conn.query(
-      `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_requirement_id,created_by)
-       VALUES ('resource',?,?,?,?)`,
-      [resourceId, mapNote, reqId, req.session.user.id]
-    );
-
-    await conn.query(
-      `INSERT INTO crm_activity_logs (entity_type,entity_id,note,ref_resource_id,created_by)
-       VALUES ('requirement',?,?,?,?)`,
-      [reqId, `Resource mapped to this requirement.`, resourceId, req.session.user.id]
-    );
-
-    await conn.query('UPDATE crm_requirements SET is_shared = 1 WHERE id = ?', [reqId]);
-
-    await conn.commit();
-    res.json({ ok: true, resource_id: resourceId });
-
   } catch (err) {
-    await conn.rollback();
     console.error('Map resource error:', err);
     res.status(500).json({ error: 'Failed to map resource. ' + err.message });
-  } finally {
-    conn.release();
   }
 });
 
@@ -541,7 +604,10 @@ router.patch('/:id/resource/:resourceId/stage', async (req, res) => {
        WHERE rr.requirement_id=? AND rr.resource_id=? FOR UPDATE`,
       [reqId, resourceId]
     );
-    if (!pairRows.length) { await conn.rollback(); return res.status(404).json({ error: 'Not mapped.' }); }
+    if (!pairRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Not mapped.' });
+    }
     const pair = pairRows[0];
 
     await conn.query('UPDATE crm_requirement_resources SET stage=? WHERE id=?', [stage, pair.id]);
@@ -595,27 +661,23 @@ async function handleUnmapResource(req, res, reqId, targetResourceId) {
     const resourceId = targetResourceId || requirement.resource_id;
 
     if (!resourceId) {
-      // Clear any orphaned mappings if no specific resource
       await conn.query('DELETE FROM crm_requirement_resources WHERE requirement_id=?', [reqId]);
       await conn.query('UPDATE crm_requirements SET resource_id=NULL WHERE id=?', [reqId]);
       await conn.commit();
       return res.json({ ok: true, message: 'Requirement unmapped successfully.' });
     }
 
-    // Get resource details
     const [resRows] = await conn.query(
       'SELECT id, resource_name, unique_uid FROM crm_resources WHERE id=?',
       [resourceId]
     );
     const resource = resRows.length ? resRows[0] : { id: resourceId, resource_name: `Resource #${resourceId}`, unique_uid: '' };
 
-    // 1. Delete mapping row from crm_requirement_resources
     await conn.query(
       'DELETE FROM crm_requirement_resources WHERE requirement_id=? AND resource_id=?',
       [reqId, resourceId]
     );
 
-    // 2. If requirement's direct resource_id matches this resource, update it
     if (String(requirement.resource_id) === String(resourceId)) {
       const [otherMapped] = await conn.query(
         'SELECT resource_id FROM crm_requirement_resources WHERE requirement_id=? ORDER BY created_at DESC LIMIT 1',
@@ -625,10 +687,8 @@ async function handleUnmapResource(req, res, reqId, targetResourceId) {
       await conn.query('UPDATE crm_requirements SET resource_id=? WHERE id=?', [newReqResourceId, reqId]);
     }
 
-    // 3. Recalculate resource availability status
     await refreshResourceAvailability(conn, resourceId);
 
-    // 4. Activity log for requirement
     await conn.query(
       `INSERT INTO crm_activity_logs (entity_type, entity_id, note, ref_resource_id, created_by)
        VALUES ('requirement', ?, ?, ?, ?)`,
@@ -640,7 +700,6 @@ async function handleUnmapResource(req, res, reqId, targetResourceId) {
       ]
     );
 
-    // 5. Activity log for resource
     await conn.query(
       `INSERT INTO crm_activity_logs (entity_type, entity_id, note, ref_requirement_id, created_by)
        VALUES ('resource', ?, ?, ?, ?)`,

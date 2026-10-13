@@ -44,9 +44,18 @@
       text-align: center;
     }
 
-    .table-wrap {
-      overflow: visible !important;
-      position: relative;
+    @media (min-width: 992px) {
+      .table-wrap {
+        overflow: visible !important;
+        position: relative;
+      }
+    }
+    @media (max-width: 991.98px) {
+      .table-wrap {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+      }
     }
     .table-wrap .table {
       margin-bottom: 0;

@@ -1,20 +1,24 @@
 <div class="topbar d-flex justify-content-between align-items-center position-relative">
-  <!-- Point: "Global search sirf dashboard mai hoga" — every other page
-       includes this same topbar partial WITHOUT passing showSearch, so it
-       defaults to hidden there. Only dashboard.ejs passes showSearch:true. -->
-  <% if(typeof showSearch !== 'undefined' && showSearch){ %>
-  <div style="max-width:440px;width:100%;position:relative;">
-    <div class="input-group">
-      <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass" style="color:#C0392B;font-size:.85rem"></i></span>
-      <input type="text" id="gsi" class="form-control border-start-0" placeholder="Search resources, requirements, clients..." autocomplete="off">
+  <div class="d-flex align-items-center flex-grow-1 me-2" style="max-width:480px;">
+    <button class="btn btn-sm btn-light border d-lg-none me-2 p-0 flex-shrink-0" id="sidebarToggleBtn" type="button" aria-label="Toggle navigation" style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;">
+      <i class="fa-solid fa-bars fs-6 text-secondary"></i>
+    </button>
+    <!-- Point: "Global search sirf dashboard mai hoga" — every other page
+         includes this same topbar partial WITHOUT passing showSearch, so it
+         defaults to hidden there. Only dashboard.ejs passes showSearch:true. -->
+    <% if(typeof showSearch !== 'undefined' && showSearch){ %>
+    <div style="flex:1;position:relative;">
+      <div class="input-group">
+        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass" style="color:#C0392B;font-size:.85rem"></i></span>
+        <input type="text" id="gsi" class="form-control border-start-0" placeholder="Search resources, requirements, clients..." autocomplete="off">
+      </div>
+      <div id="gsr" class="position-absolute w-100 bg-white border rounded-2 shadow-sm mt-1 d-none" style="z-index:9999;max-height:380px;overflow-y:auto"></div>
     </div>
-    <div id="gsr" class="position-absolute w-100 bg-white border rounded-2 shadow-sm mt-1 d-none" style="z-index:9999;max-height:380px;overflow-y:auto"></div>
+    <% } %>
   </div>
-  <% }else{ %>
-  <div></div>
-  <% } %>
-  <div class="d-flex align-items-center gap-3">
-    <div class="text-end">
+
+  <div class="d-flex align-items-center gap-2 gap-sm-3 flex-shrink-0">
+    <div class="text-end d-none d-sm-block">
       <div class="fw-semibold small lh-1"><%= user.name %></div>
       <div class="text-secondary" style="font-size:.72rem;text-transform:capitalize"><%= user.role.replace('_',' ') %></div>
     </div>
@@ -35,6 +39,18 @@
 
 <script>
 (function(){
+  const tBtn = document.getElementById('sidebarToggleBtn');
+  if (tBtn) {
+    tBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const sb = document.getElementById('appSidebar');
+      const bd = document.getElementById('sidebarBackdrop');
+      if (sb) sb.classList.toggle('show');
+      if (bd) bd.classList.toggle('show');
+      document.body.classList.toggle('sidebar-open');
+    });
+  }
+
   const inp=document.getElementById('gsi'), box=document.getElementById('gsr');
   if(!inp) return;
   let timer;

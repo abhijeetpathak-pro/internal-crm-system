@@ -21,55 +21,57 @@
   <% } %>
 
   <div class="card stat-card p-0">
-    <table class="table align-middle mb-0">
-      <thead><tr class="text-secondary small text-uppercase border-bottom">
-        <th class="ps-3">Name</th><th>Email</th><th>Role</th><th>Status</th><th>Added By</th><th>Joined</th><th class="pe-3"></th>
-      </tr></thead>
-      <tbody>
-        <% members.forEach(m=>{ %>
-        <tr id="mrow-<%= m.id %>">
-          <td class="ps-3 fw-semibold"><%= m.name %></td>
-          <td class="small text-secondary"><%= m.email %></td>
-          <td><span class="badge rounded-pill" style="background:<%= m.role==='super_admin'?'#fdf2f2':m.role==='admin'?'#eff6ff':'#f0fdf4' %>;color:<%= m.role==='super_admin'?'#C0392B':m.role==='admin'?'#1e40af':'#166534' %>">
-            <%= m.role==='super_admin'?'Super Admin':m.role==='admin'?'Admin':'Employee' %>
-          </span></td>
-          <td><span class="badge <%= m.status==='active'?'bg-success':'bg-secondary' %>"><%= m.status %></span></td>
-          <td class="small text-secondary"><%= m.created_by_name||'—' %></td>
-          <td class="small text-secondary"><%= new Date(m.created_at).toLocaleDateString('en-IN') %></td>
-          <td class="pe-3 text-end">
-            <div class="dropdown">
-              <button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                <li><a class="dropdown-item" href="#" onclick="openReset(<%= m.id %>,'<%= m.name.replace(/'/g,"\\'") %>'); return false">
-                  <i class="fa-solid fa-key me-2 text-warning"></i>Reset Password
-                </a></li>
-                <% if(user.role==='super_admin' && m.role!=='super_admin'){ %>
-                <li><a class="dropdown-item" href="#" onclick="toggleStatus(<%= m.id %>,'<%= m.status %>'); return false">
-                  <i class="fa-solid fa-power-off me-2 text-secondary"></i><%= m.status==='active'?'Disable':'Enable' %>
-                </a></li>
-                <% } %>
-                <!-- Point: Delete used to be nested inside the super_admin-only
-                     block above, so an Admin never saw it at all — only
-                     Reset Password showed for them. Admin can now delete the
-                     Employee accounts they manage (same rule already used
-                     for Reset Password / role changes); Super Admin can
-                     delete anyone except other super admins. -->
-                <% if((user.role==='super_admin' && m.role!=='super_admin') || (user.role==='admin' && m.role==='emp')){ %>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="#" onclick="deleteMember(<%= m.id %>,'<%= m.name.replace(/'/g,"\\'") %>'); return false">
-                  <i class="fa-solid fa-trash me-2"></i>Delete
-                </a></li>
-                <% } %>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        <% }) %>
-        <% if(!members.length){ %><tr><td colspan="7" class="text-center py-4 text-secondary">No members yet.</td></tr><% } %>
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr class="text-secondary small text-uppercase border-bottom">
+          <th class="ps-3">Name</th><th>Email</th><th>Role</th><th>Status</th><th>Added By</th><th>Joined</th><th class="pe-3"></th>
+        </tr></thead>
+        <tbody>
+          <% members.forEach(m=>{ %>
+          <tr id="mrow-<%= m.id %>">
+            <td class="ps-3 fw-semibold"><%= m.name %></td>
+            <td class="small text-secondary"><%= m.email %></td>
+            <td><span class="badge rounded-pill" style="background:<%= m.role==='super_admin'?'#fdf2f2':m.role==='admin'?'#eff6ff':'#f0fdf4' %>;color:<%= m.role==='super_admin'?'#C0392B':m.role==='admin'?'#1e40af':'#166534' %>">
+              <%= m.role==='super_admin'?'Super Admin':m.role==='admin'?'Admin':'Employee' %>
+            </span></td>
+            <td><span class="badge <%= m.status==='active'?'bg-success':'bg-secondary' %>"><%= m.status %></span></td>
+            <td class="small text-secondary"><%= m.created_by_name||'—' %></td>
+            <td class="small text-secondary"><%= new Date(m.created_at).toLocaleDateString('en-IN') %></td>
+            <td class="pe-3 text-end">
+              <div class="dropdown">
+                <button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown">
+                  <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                  <li><a class="dropdown-item" href="#" onclick="openReset(<%= m.id %>,'<%= m.name.replace(/'/g,"\\'") %>'); return false">
+                    <i class="fa-solid fa-key me-2 text-warning"></i>Reset Password
+                  </a></li>
+                  <% if(user.role==='super_admin' && m.role!=='super_admin'){ %>
+                  <li><a class="dropdown-item" href="#" onclick="toggleStatus(<%= m.id %>,'<%= m.status %>'); return false">
+                    <i class="fa-solid fa-power-off me-2 text-secondary"></i><%= m.status==='active'?'Disable':'Enable' %>
+                  </a></li>
+                  <% } %>
+                  <!-- Point: Delete used to be nested inside the super_admin-only
+                       block above, so an Admin never saw it at all — only
+                       Reset Password showed for them. Admin can now delete the
+                       Employee accounts they manage (same rule already used
+                       for Reset Password / role changes); Super Admin can
+                       delete anyone except other super admins. -->
+                  <% if((user.role==='super_admin' && m.role!=='super_admin') || (user.role==='admin' && m.role==='emp')){ %>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="#" onclick="deleteMember(<%= m.id %>,'<%= m.name.replace(/'/g,"\\'") %>'); return false">
+                    <i class="fa-solid fa-trash me-2"></i>Delete
+                  </a></li>
+                  <% } %>
+                </ul>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+          <% if(!members.length){ %><tr><td colspan="7" class="text-center py-4 text-secondary">No members yet.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

@@ -1,11 +1,16 @@
-<nav class="sidebar">
-  <a href="/dashboard" class="sidebar-logo-wrap">
-    <img src="/img/witqualis_logo.jpg" alt="CWA">
-    <div class="sidebar-logo-text">
-      <div class="name">CRM SYSTEM</div>
-      <div class="sub">TECH & MARKETING</div>
-    </div>
-  </a>
+<nav class="sidebar" id="appSidebar">
+  <div class="sidebar-logo-wrap d-flex justify-content-between align-items-center">
+    <a href="/dashboard" class="d-flex align-items-center gap-2 text-decoration-none">
+      <img src="/img/witqualis_logo.jpg" alt="CWA">
+      <div class="sidebar-logo-text">
+        <div class="name">CRM SYSTEM</div>
+        <div class="sub">TECH & MARKETING</div>
+      </div>
+    </a>
+    <button type="button" class="btn btn-sm btn-link text-white-50 p-1 d-lg-none text-decoration-none" id="sidebarCloseBtn" aria-label="Close Sidebar">
+      <i class="fa-solid fa-xmark fs-5"></i>
+    </button>
+  </div>
 
   <div style="padding:.6rem .5rem .25rem;flex:1;overflow-y:auto;">
     <ul class="nav nav-pills flex-column gap-1">
@@ -120,3 +125,31 @@
     <div style="font-size:.63rem;color:rgba(255,255,255,.2);margin-top:.6rem;padding-left:.85rem">CWA CRM v3.0</div>
   </div>
 </nav>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+<script>
+(function() {
+  function closeMobileSidebar() {
+    var sb = document.getElementById('appSidebar');
+    var bd = document.getElementById('sidebarBackdrop');
+    if (sb) sb.classList.remove('show');
+    if (bd) bd.classList.remove('show');
+    document.body.classList.remove('sidebar-open');
+  }
+
+  var cBtn = document.getElementById('sidebarCloseBtn');
+  var bDrop = document.getElementById('sidebarBackdrop');
+  if (cBtn) cBtn.addEventListener('click', closeMobileSidebar);
+  if (bDrop) bDrop.addEventListener('click', closeMobileSidebar);
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var sb = document.getElementById('appSidebar');
+    if (sb) {
+      sb.querySelectorAll('a:not(.dropdown-toggle)').forEach(function(link) {
+        link.addEventListener('click', function() {
+          if (window.innerWidth < 992) closeMobileSidebar();
+        });
+      });
+    }
+  });
+})();
+</script>

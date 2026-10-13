@@ -52,10 +52,10 @@ router.get('/requirements', async (req, res) => {
       const key = d.toISOString().slice(0, 10); // Standard YYYY-MM-DD key
 
       if (!groupByKey.has(key)) {
-        const label = d.toLocaleDateString('en-IN', { 
-          day: '2-digit', 
-          month: 'long', 
-          year: 'numeric' 
+        const label = d.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
         });
         const group = { key, label, requirements: [] };
         groupByKey.set(key, group);
@@ -64,10 +64,10 @@ router.get('/requirements', async (req, res) => {
       groupByKey.get(key).requirements.push(r);
     }
 
-    res.render('requirements/list', { 
-      groups, 
-      user, 
-      active: 'requirements' 
+    res.render('requirements/list', {
+      groups,
+      user,
+      active: 'requirements'
     });
   } catch (err) {
     console.error('Fetch requirements error:', err);
@@ -155,9 +155,9 @@ router.get('/requirements/add', async (req, res) => {
     const [clients] = await pool.query(
       'SELECT id, company_name FROM crm_clients ORDER BY company_name'
     );
-    
-    res.render('requirements/add', { 
-      user: req.session.user, 
+
+    res.render('requirements/add', {
+      user: req.session.user,
       active: 'requirements',
       clients: clients,
       isEdit: false
@@ -226,6 +226,30 @@ router.get('/requirements/edit/:id', async (req, res) => {
 });
 
 /**
+ * ─── API: GET /api/requirements/recent ───────────────────────────────────────
+ * API: Fetch recent requirements for dashboard
+ */
+router.get('/api/requirements/recent', async (req, res) => {
+  try {
+    const user = req.session.user;
+    const ownFilter = user && user.role === 'emp' ? ' WHERE r.created_by = ?' : '';
+    const ownParams = user && user.role === 'emp' ? [user.id] : [];
+    const [rows] = await pool.query(`
+      SELECT r.id, r.title, r.status, r.budget, r.created_at, c.company_name
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      ${ownFilter}
+      ORDER BY r.created_at DESC
+      LIMIT 5
+    `, ownParams);
+    res.json(rows);
+  } catch (err) {
+    console.error('Recent requirements error:', err);
+    res.status(500).json([]);
+  }
+});
+
+/**
  * ─── 4. API: GET /api/requirements/:id ───────────────────────────────────────
  * API: Fetch single requirement details for AJAX Edit Modal
  */
@@ -237,7 +261,7 @@ router.get('/api/requirements/:id', async (req, res) => {
     }
 
     const [clients] = await pool.query('SELECT id, company_name FROM crm_clients ORDER BY company_name');
-    
+
     let pocs = [];
     if (rows[0].client_id) {
       const [pocRows] = await pool.query('SELECT id, poc_name FROM crm_pocs WHERE client_id = ? ORDER BY poc_name', [rows[0].client_id]);
@@ -320,12 +344,12 @@ router.delete('/api/requirements/:id', async (req, res) => {
     // ── ✅ FIXED: Table name singular ──
     try {
       await pool.query('DELETE FROM crm_requirement_resources WHERE requirement_id = ?', [reqId]);
-    } catch(e) { console.log('Mapping table cleanup skipped:', e.message); }
+    } catch (e) { console.log('Mapping table cleanup skipped:', e.message); }
 
     try {
       await pool.query('DELETE FROM crm_activity_logs WHERE entity_type = "requirement" AND entity_id = ?', [reqId]);
-    } catch(e) { console.log('Logs table cleanup skipped:', e.message); }
-    
+    } catch (e) { console.log('Logs table cleanup skipped:', e.message); }
+
     await pool.query('DELETE FROM crm_requirements WHERE id = ?', [reqId]);
 
     res.json({ success: true, message: 'Deleted successfully' });
@@ -353,7 +377,7 @@ router.get('/requirements/:id', async (req, res) => {
        LEFT JOIN crm_pocs p ON p.id = r.poc_id
        LEFT JOIN crm_resources res ON res.id = r.resource_id
        LEFT JOIN crm_clients cl ON cl.id = r.client_id
-       WHERE r.id = ?`, 
+       WHERE r.id = ?`,
       [req.params.id]
     );
 
@@ -363,9 +387,9 @@ router.get('/requirements/:id', async (req, res) => {
 
     const isAdmin = req.session.user.role === 'admin' || req.session.user.role === 'super_admin';
     if (!isAdmin && reqRows[0].created_by !== req.session.user.id) {
-      return res.status(403).render('error', { 
-        message: 'You do not have permission to view this requirement.', 
-        user: req.session.user 
+      return res.status(403).render('error', {
+        message: 'You do not have permission to view this requirement.',
+        user: req.session.user
       });
     }
 
@@ -377,12 +401,12 @@ router.get('/requirements/:id', async (req, res) => {
          FROM crm_activity_logs a
          LEFT JOIN crm_users u ON u.id = a.created_by
          WHERE a.entity_type = 'requirement' AND a.entity_id = ?
-         ORDER BY a.created_at DESC`, 
+         ORDER BY a.created_at DESC`,
         [req.params.id]
       );
       activity = actRows;
-    } catch(e) { 
-      console.log('Activity log fetch fallback:', e.message); 
+    } catch (e) {
+      console.log('Activity log fetch fallback:', e.message);
     }
 
     // ── RESOURCES SENT ──
@@ -395,12 +419,12 @@ router.get('/requirements/:id', async (req, res) => {
          JOIN crm_resources res ON res.id = rr.resource_id
          LEFT JOIN crm_vendors v ON res.vendor_id = v.id
          WHERE rr.requirement_id = ?
-         ORDER BY rr.created_at DESC`, 
+         ORDER BY rr.created_at DESC`,
         [req.params.id]
       );
       resourcesSent = resSentRows;
-    } catch(e) { 
-      console.log('Resources sent table query error:', e.message); 
+    } catch (e) {
+      console.log('Resources sent table query error:', e.message);
     }
 
     const [vendors] = await pool.query('SELECT * FROM crm_vendors ORDER BY vendor_name');

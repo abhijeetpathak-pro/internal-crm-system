@@ -14,43 +14,45 @@
       <% } %>
     </div>
     <div class="card stat-card p-0">
-      <table class="table align-middle mb-0">
-        <thead>
-          <tr class="text-secondary small text-uppercase border-bottom">
-            <th class="ps-3">Company</th>
-            <th>Website</th>
-            <th>Phone</th>
-            <th>Email</th>
-            <th class="pe-3"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <% clients.forEach(function(c){ %>
-          <tr id="crow-<%= c.id %>">
-            <td class="ps-3 fw-semibold"><%= c.company_name %></td>
-            <td class="small"><% if(c.website){ %><a href="<%= c.website %>" target="_blank" class="text-decoration-none" style="color:#C0392B"><%= c.website.replace(/^https?:\/\//,'').split('/')[0] %></a><% }else{ %>—<% } %></td>
-            <td class="small text-secondary"><%= c.phone||'—' %></td>
-            <td class="small text-secondary"><%= c.email||'—' %></td>
-            <td class="pe-3 text-end">
-              <div class="dropdown">
-                <button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown">
-                  <i class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                  <li><a class="dropdown-item" href="/clients/<%= c.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View & POCs</a></li>
-                  <% if(user.role==='admin'||user.role==='super_admin'){ %>
-                  <li><a class="dropdown-item" href="#" onclick="editClient('<%= c.id %>', '<%= c.company_name %>', '<%= c.website %>', '<%= c.phone %>', '<%= c.email %>', '<%= c.address %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item text-danger" href="#" onclick="delClient('<%= c.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
-                  <% } %>
-                </ul>
-              </div>
-            </td>
-          </tr>
-          <% }) %>
-          <% if(!clients.length){ %><tr><td colspan="5" class="text-center py-4 text-secondary">No clients yet.</td></tr><% } %>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr class="text-secondary small text-uppercase border-bottom">
+              <th class="ps-3">Company</th>
+              <th>Website</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th class="pe-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% clients.forEach(function(c){ %>
+            <tr id="crow-<%= c.id %>">
+              <td class="ps-3 fw-semibold"><%= c.company_name %></td>
+              <td class="small"><% if(c.website){ %><a href="<%= c.website %>" target="_blank" class="text-decoration-none" style="color:#C0392B"><%= c.website.replace(/^https?:\/\//,'').split('/')[0] %></a><% }else{ %>—<% } %></td>
+              <td class="small text-secondary"><%= c.phone||'—' %></td>
+              <td class="small text-secondary"><%= c.email||'—' %></td>
+              <td class="pe-3 text-end">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border rounded-circle" style="width:32px;height:32px;padding:0" data-bs-toggle="dropdown">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                    <li><a class="dropdown-item" href="/clients/<%= c.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View & POCs</a></li>
+                    <% if(user.role==='admin'||user.role==='super_admin'){ %>
+                    <li><a class="dropdown-item" href="#" onclick="editClient('<%= c.id %>', '<%= c.company_name %>', '<%= c.website %>', '<%= c.phone %>', '<%= c.email %>', '<%= c.address %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="delClient('<%= c.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>
+                    <% } %>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <% }) %>
+            <% if(!clients.length){ %><tr><td colspan="5" class="text-center py-4 text-secondary">No clients yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 

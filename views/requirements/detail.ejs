@@ -183,7 +183,7 @@
       <%- include('../partials/topbar',{user}) %>
 
         <!-- ==================== HEADER ==================== -->
-        <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
           <div>
             <h4 class="fw-semibold mb-1">
               <%= requirement.title %>
@@ -203,7 +203,7 @@
               <% } %>
           </div>
 
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex flex-wrap align-items-center gap-2">
             <!-- WhatsApp Share Button -->
             <button type="button" class="action-btn share-whatsapp-btn" data-id="<%= requirement.id %>"
               data-title="<%= requirement.title %>" data-company="<%= requirement.company_name || '' %>"
@@ -243,16 +243,16 @@
         <div class="card stat-card p-3 mb-3">
           <div class="row g-2 small">
             <h4 class="fw-semibold"><span class="badge bg-primary me-2">#<%= requirement.id %></span></h4>
-            <div class="col-md-3"><span class="text-secondary">Client:</span> <strong>
+            <div class="col-6 col-md-3"><span class="text-secondary">Client:</span> <strong>
                 <%= requirement.company_name || '—' %>
               </strong></div>
-            <div class="col-md-3"><span class="text-secondary">POC:</span>
+            <div class="col-6 col-md-3"><span class="text-secondary">POC:</span>
               <%= requirement.poc_name || '—' %>
             </div>
-            <div class="col-md-3"><span class="text-secondary">Budget:</span>
+            <div class="col-6 col-md-3"><span class="text-secondary">Budget:</span>
               <%= requirement.budget || '—' %>
             </div>
-            <div class="col-md-3"><span class="text-secondary">Location:</span> <strong>
+            <div class="col-6 col-md-3"><span class="text-secondary">Location:</span> <strong>
                 <%= requirement.location || '—' %>
               </strong></div>
           </div>
@@ -293,7 +293,7 @@
               <div class="fw-semibold mb-3"><i class="fa-solid fa-link me-2 text-danger"></i>Map Resource to this
                 Requirement</div>
 
-              <div class="d-flex gap-2 mb-3">
+              <div class="d-flex flex-wrap gap-2 mb-3">
                 <button class="workflow-tab active" id="tabDB" onclick="switchTab('db')">
                   <i class="fa-solid fa-database me-1"></i>Select From Database
                 </button>
@@ -475,9 +475,10 @@
                             class="flex-grow-1 me-2">
                             <div class="small fw-semibold text-dark">
                               <%= i+1 %>. <%= rs.resource_name %>
-                              <% if(rs.unique_uid){ %>
-                                <span class="text-secondary fw-normal font-monospace small">(<%= rs.unique_uid %>)</span>
-                              <% } %>
+                                  <% if(rs.unique_uid){ %>
+                                    <span class="text-secondary fw-normal font-monospace small">(<%= rs.unique_uid %>
+                                        )</span>
+                                    <% } %>
                             </div>
                             <div class="small text-secondary">
                               <%= rs.skills?(rs.skills.split(',')[0].trim()):'—' %>
@@ -524,16 +525,11 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 
-    <!-- ============================================================ -->
-    <!-- ✅ FIXED: EJS variables injected into JS                     -->
-    <!-- ============================================================ -->
     <script>
       const REQ_ID = <%= requirement.id %>;
       const REQ_TITLE = <%- JSON.stringify(requirement.title || '') %>;
       const CURRENT_SHARE_STATUS = <%= requirement.is_shared == 1 ? 1 : 0 %>;
-    </script>
 
-    <script>
       // WhatsApp Share Event Listener
       document.addEventListener('click', function (event) {
         const shareBtn = event.target.closest('.share-whatsapp-btn');
@@ -673,7 +669,7 @@
         });
       });
 
-      // ✅ Remove Profile from Requirement
+      // Remove Profile from Requirement
       document.addEventListener('click', async function (event) {
         const removeBtn = event.target.closest('.remove-profile-btn');
         if (!removeBtn) return;
@@ -701,7 +697,7 @@
           if (res.ok) {
             location.reload();
           } else {
-            alert(data.error || data.message || 'Failed to remove profile.');
+            alert(data.error || 'Failed to remove profile.');
             removeBtn.disabled = false;
             removeBtn.innerHTML = originalHtml;
           }
@@ -852,13 +848,38 @@
 
       function toggleNrFields() {
         var isVendor = document.getElementById('nrType').value === 'Vendor';
-        document.getElementById('nrInhouse').classList.toggle('d-none', isVendor);
-        document.getElementById('nrVendor').classList.toggle('d-none', !isVendor);
+        var inhouseDiv = document.getElementById('nrInhouse');
+        var vendorDiv = document.getElementById('nrVendor');
+        var vendorSel = document.getElementById('nrVendorSel');
+
+        inhouseDiv.classList.toggle('d-none', isVendor);
+        vendorDiv.classList.toggle('d-none', !isVendor);
+
+        // Required attributes toggle to prevent hidden field validation errors
+        var inhouseInputs = inhouseDiv.querySelectorAll('input');
+        inhouseInputs.forEach(input => {
+          if (isVendor) {
+            input.removeAttribute('required');
+          } else {
+            if (input.name === 'contact_number' || input.name === 'email' || input.name === 'linkedin') {
+              input.setAttribute('required', 'required');
+            }
+          }
+        });
+
+        if (vendorSel) {
+          if (isVendor) {
+            vendorSel.setAttribute('required', 'required');
+            loadVendorsForNew();
+          } else {
+            vendorSel.removeAttribute('required');
+          }
+        }
       }
 
       async function loadVendorsForNew() {
         var vSelect = document.getElementById('nrVendorSel');
-        if (vSelect.options.length > 1) return;
+        if (!vSelect || vSelect.options.length > 1) return;
         var res = await fetch('/api/vendors');
         var vendors = await res.json();
         vSelect.innerHTML = '<option value="">Select vendor...</option>' + vendors.map(function (v) {
@@ -880,6 +901,7 @@
       document.getElementById('newResInlineForm').addEventListener('submit', async function (e) {
         e.preventDefault();
         var msg = document.getElementById('nrMsg');
+        msg.className = 'alert mt-2 d-none py-1 small';
         var fd = new FormData(e.target);
         fd.append('req_title', REQ_TITLE);
 

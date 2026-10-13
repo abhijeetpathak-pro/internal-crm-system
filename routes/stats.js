@@ -129,12 +129,27 @@ router.get('/', async (req, res) => {
     // Missing dates ke liye 0 value fill karta hai (chart mein gaps nahi aane deta)
     function buildDailyArray(days, rows) {
       const map = {};
-      rows.forEach(r => { map[r.day] = Number(r.count); });
+      rows.forEach(r => {
+        let dayStr = '';
+        if (r.day instanceof Date) {
+          const y = r.day.getFullYear();
+          const m = String(r.day.getMonth() + 1).padStart(2, '0');
+          const d = String(r.day.getDate()).padStart(2, '0');
+          dayStr = `${y}-${m}-${d}`;
+        } else {
+          dayStr = String(r.day || '').slice(0, 10);
+        }
+        map[dayStr] = Number(r.count);
+      });
       const labels = [], data = [];
-      for (let i = days-1; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate()-i);
-        const key = d.toISOString().slice(0,10);
-        labels.push(d.toLocaleDateString('en-IN',{month:'short',day:'numeric'}));
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const key = `${y}-${m}-${day}`;
+        labels.push(d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
         data.push(map[key] || 0);
       }
       return { labels, data };
