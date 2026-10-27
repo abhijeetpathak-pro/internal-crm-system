@@ -9,7 +9,7 @@
     <%- include('../partials/topbar',{user}) %>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="fw-semibold mb-0"><i class="fa-solid fa-handshake me-2 text-danger"></i>Vendors</h4>
-      <% if(user.role==='admin'||user.role==='super_admin'){ %>
+      <% if(user.role==='admin'||user.role==='super_admin'|| user.role==='emp'){ %>
       <a href="/vendors/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Vendor</a>
       <% } %>
     </div>
@@ -39,7 +39,7 @@
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                     <li><a class="dropdown-item" href="/vendors/<%= v.id %>"><i class="fa-solid fa-eye me-2 text-secondary"></i>View & POCs</a></li>
-                    <% if(user.role==='admin'||user.role==='super_admin'){ %>
+                    <% if(user.role==='admin'||user.role==='super_admin'|| user.role==='emp'){ %>
                     <li><a class="dropdown-item" href="#" onclick="editVendor('<%= v.id %>', '<%= v.vendor_name %>', '<%= v.short_code %>', '<%= v.website %>', '<%= v.phone %>', '<%= v.email %>', '<%= v.address %>');return false"><i class="fa-solid fa-pencil me-2 text-primary"></i>Edit</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item text-danger" href="#" onclick="delVendor('<%= v.id %>');return false"><i class="fa-solid fa-trash me-2"></i>Delete</a></li>

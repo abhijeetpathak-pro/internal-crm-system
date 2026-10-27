@@ -27,11 +27,11 @@
           <span class="input-group-text bg-white border-end-0">
             <i class="fa-solid fa-envelope text-secondary" style="font-size:.85rem"></i>
           </span>
-          <input type="email" name="email" class="form-control border-start-0"
+          <input type="email" id="emailInput" name="email" class="form-control border-start-0"
                  placeholder="you@codewithakhil.com" required autofocus>
         </div>
       </div>
-      <div class="mb-4">
+      <div class="mb-3">
         <label class="form-label small fw-semibold text-secondary">Password</label>
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0">
@@ -44,6 +44,16 @@
           </button>
         </div>
       </div>
+      
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="form-check d-flex align-items-center gap-2">
+          <input class="form-check-input mt-0" type="checkbox" name="remember" id="rememberMe" value="true" checked style="cursor: pointer; width: 1.15rem; height: 1.15rem;">
+          <label class="form-check-label small fw-semibold text-secondary" for="rememberMe" style="cursor: pointer; user-select: none;">
+            <i class="fa-solid fa-shield-halved text-primary me-1" style="font-size:.85rem;"></i> Login save rakhein <span class="text-muted fw-normal" style="font-size: .78rem;">(Save Login)</span>
+          </label>
+        </div>
+      </div>
+
       <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
         <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In
       </button>
@@ -58,21 +68,56 @@
   </div>
 </div>
 <script>
+  // Toggle password visibility
   document.getElementById('togglePasswordBtn').addEventListener('click', function () {
-    const passwordInput = document.getElementById('passwordInput'); // Apne input ki ID yahan daalo
+    const passwordInput = document.getElementById('passwordInput');
     const eyeIcon = document.getElementById('eyeIcon');
 
-    // Agar password hidden hai toh show karo, agar dikh raha hai toh hide karo
     if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        eyeIcon.classList.remove('fa-eye');
-        eyeIcon.classList.add('fa-eye-slash'); // Aankh par line aa jayegi
+      passwordInput.type = 'text';
+      eyeIcon.classList.remove('fa-eye');
+      eyeIcon.classList.add('fa-eye-slash');
     } else {
-        passwordInput.type = 'password';
-        eyeIcon.classList.remove('fa-eye-slash');
-        eyeIcon.classList.add('fa-eye'); // Normal aankh dikhegi
+      passwordInput.type = 'password';
+      eyeIcon.classList.remove('fa-eye-slash');
+      eyeIcon.classList.add('fa-eye');
     }
-});
+  });
+
+  // Remember login & email preferences via localStorage
+  (function() {
+    const emailInput = document.getElementById('emailInput');
+    const rememberCheckbox = document.getElementById('rememberMe');
+    const loginForm = document.querySelector('form');
+
+    try {
+      const savedEmail = localStorage.getItem('crm_saved_email');
+      const savedRemember = localStorage.getItem('crm_remember_checked');
+      if (savedEmail && emailInput) {
+        emailInput.value = savedEmail;
+        // Focus password if email is already present
+        const pwdInput = document.getElementById('passwordInput');
+        if (pwdInput) pwdInput.focus();
+      }
+      if (savedRemember !== null && rememberCheckbox) {
+        rememberCheckbox.checked = savedRemember === 'true';
+      }
+    } catch (e) {}
+
+    if (loginForm) {
+      loginForm.addEventListener('submit', function() {
+        try {
+          if (rememberCheckbox && rememberCheckbox.checked && emailInput) {
+            localStorage.setItem('crm_saved_email', emailInput.value.trim());
+            localStorage.setItem('crm_remember_checked', 'true');
+          } else {
+            localStorage.removeItem('crm_saved_email');
+            localStorage.setItem('crm_remember_checked', 'false');
+          }
+        } catch (e) {}
+      });
+    }
+  })();
 </script>
 </body>
 </html>

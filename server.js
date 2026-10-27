@@ -5,9 +5,14 @@ require('dotenv').config();
 const express   = require('express');
 const path      = require('path');
 const session   = require('express-session');
+const cookieParser = require('cookie-parser');
 const helmet    = require('helmet');
 const MySQLStore = require('express-mysql-session')(session);
 const pool      = require('./db');
+const { initRememberTable, autoLoginMiddleware } = require('./services/authService');
+
+// Ensure remember-tokens table is ready
+initRememberTable();
 
 const { requireLogin } = require('./middleware/auth');
 const checkLicense     = require('./middleware/license');
@@ -57,25 +62,36 @@ app.disable('x-powered-by');
 // CSP is disabled temporarily because the current EJS views use inline scripts;
 // migrate those scripts to external files/nonces before enabling a strict CSP.
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb', parameterLimit: 100 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
-const sessionStore = new MySQLStore({}, pool);
+const sessionStore = new MySQLStore({
+  clearExpired: true,
+  checkExpirationInterval: 15 * 60 * 1000, // 15 mins cleanup
+  expiration: 30 * 24 * 60 * 60 * 1000,    // 30 days
+  createDatabaseTable: true
+}, pool);
+
 app.use(session({
   key: 'crm_session',
   secret: SESSION_SECRET,
   store: sessionStore,
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Renew cookie maxAge on active requests
   cookie: {
-    maxAge: 1000 * 60 * 60 * 8, // 8 hours
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days default
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production'
   }
 }));
+
+// ── Persistent Login Restoration (Auto-Login via Remember Token) ──────────────
+app.use(autoLoginMiddleware);
 
 // ── Google Search Console Verification ──────────────────────────────────────
 app.get('/googleff89c58ec81210dc.html', (req, res) => {

@@ -99,39 +99,43 @@
               </div>
 
               <!-- ─── IN-HOUSE FIELDS ─── -->
-              <div id="inhouseFields" class="col-12 row g-2">
-                <div class="col-md-6">
-                  <label class="form-label">Managed By</label>
-                  <input type="text" name="managed_by" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Phone Number</label>
-                  <input type="text" name="contact_number" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Email Address</label>
-                  <input type="email" name="email" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">LinkedIn</label>
-                  <input type="text" name="linkedin" class="form-control form-control-sm">
+              <div id="inhouseFields" class="col-12">
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label">Managed By</label>
+                    <input type="text" name="managed_by" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Phone Number</label>
+                    <input type="text" name="contact_number" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">LinkedIn</label>
+                    <input type="text" name="linkedin" class="form-control form-control-sm">
+                  </div>
                 </div>
               </div>
 
               <!-- ─── VENDOR FIELDS ─── -->
-              <div id="vendorFields" class="col-12 row g-2 d-none">
-                <div class="col-md-6">
-                  <label class="form-label">Vendor <span class="text-danger">*</span></label>
-                  <select name="vendor_id" id="vendorSel" class="form-select form-select-sm"
-                    onchange="loadVendorPocs()">
-                    <option value="">Select vendor...</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Vendor POC</label>
-                  <select name="poc_id" id="pocSel" class="form-select form-select-sm">
-                    <option value="">Select POC...</option>
-                  </select>
+              <div id="vendorFields" class="col-12 d-none">
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label">Vendor <span class="text-danger">*</span></label>
+                    <select name="vendor_id" id="vendorSel" class="form-select form-select-sm"
+                      onchange="loadVendorPocs()">
+                      <option value="">Select vendor...</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Vendor POC</label>
+                    <select name="poc_id" id="pocSel" class="form-select form-select-sm">
+                      <option value="">Select POC...</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

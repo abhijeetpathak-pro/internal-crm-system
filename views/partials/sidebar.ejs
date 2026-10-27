@@ -1,4 +1,26 @@
 <nav class="sidebar" id="appSidebar">
+  <style>
+    /* Remove scrollbar completely from sidebar on all browsers */
+    #appSidebar,
+    #appSidebar *,
+    .sidebar,
+    .sidebar *,
+    .sidebar-nav-scroll {
+      -ms-overflow-style: none !important;
+      scrollbar-width: none !important;
+    }
+    #appSidebar::-webkit-scrollbar,
+    #appSidebar *::-webkit-scrollbar,
+    .sidebar::-webkit-scrollbar,
+    .sidebar *::-webkit-scrollbar,
+    .sidebar-nav-scroll::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      background: transparent !important;
+    }
+  </style>
+
   <div class="sidebar-logo-wrap d-flex justify-content-between align-items-center">
     <a href="/dashboard" class="d-flex align-items-center gap-2 text-decoration-none">
       <img src="/img/witqualis_logo.jpg" alt="CWA">
@@ -12,7 +34,7 @@
     </button>
   </div>
 
-  <div style="padding:.6rem .5rem .25rem;flex:1;overflow-y:auto;">
+  <div class="sidebar-nav-scroll">
     <ul class="nav nav-pills flex-column gap-1">
 
       <li><a href="/dashboard" class="nav-link <%= active==='dashboard'?'active':'' %>">

@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS crm_users (
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- Remember Me Tokens (Persistent Login / Auto-login across app closes)
+CREATE TABLE IF NOT EXISTS crm_remember_tokens (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT NOT NULL,
+  token_hash  VARCHAR(255) NOT NULL,
+  expires_at  DATETIME NOT NULL,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  INDEX idx_token_hash (token_hash),
+  CONSTRAINT fk_remember_user FOREIGN KEY (user_id) REFERENCES crm_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- License
 CREATE TABLE IF NOT EXISTS crm_license (
   id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -88,6 +100,7 @@ CREATE TABLE IF NOT EXISTS crm_resources (
   linkedin            VARCHAR(500) NULL,
   preferred_location  VARCHAR(255) NULL,
   current_location    VARCHAR(255) NULL,
+  experience_years    DECIMAL(4,1) NULL,
   salary_lpm          DECIMAL(10,2) NULL,
   created_by          INT NULL,
   created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -109,6 +122,8 @@ CREATE TABLE IF NOT EXISTS crm_requirements (
   jd          TEXT NULL,
   status      ENUM('Open','Hold') NOT NULL DEFAULT 'Open',
   budget      VARCHAR(100) NULL,
+  location    VARCHAR(255) NULL,
+  is_shared   TINYINT(1) NOT NULL DEFAULT 0,
   created_by  INT NULL,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_req_client   FOREIGN KEY (client_id)   REFERENCES crm_clients(id)   ON DELETE CASCADE,
@@ -124,7 +139,8 @@ CREATE TABLE IF NOT EXISTS crm_requirement_resources (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   requirement_id INT NOT NULL,
   resource_id    INT NOT NULL,
-  stage          ENUM('L1','L2','L3','Reject','Select') NOT NULL DEFAULT 'L1',
+  stage          ENUM('SR','L1','L2','L3','Select','Reject') NOT NULL DEFAULT 'SR',
+  is_shared      TINYINT(1) DEFAULT 0,
   created_by     INT NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

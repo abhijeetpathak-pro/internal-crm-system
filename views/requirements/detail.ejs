@@ -378,26 +378,30 @@
                         required>
                     </div>
 
-                    <div id="nrInhouse" class="col-12 row g-2">
-                      <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text"
-                          name="managed_by" class="form-control form-control-sm"></div>
-                      <div class="col-md-4"><label class="form-label small">Phone *</label><input type="text"
-                          name="contact_number" class="form-control form-control-sm" required></div>
-                      <div class="col-md-4"><label class="form-label small">Email *</label><input type="email"
-                          name="email" class="form-control form-control-sm" required></div>
-                      <div class="col-md-6"><label class="form-label small">LinkedIn *</label><input type="text"
-                          name="linkedin" class="form-control form-control-sm" required></div>
+                    <div id="nrInhouse" class="col-12">
+                      <div class="row g-2">
+                        <div class="col-md-4"><label class="form-label small">Managed By</label><input type="text"
+                            name="managed_by" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small">Phone *</label><input type="text"
+                            name="contact_number" class="form-control form-control-sm" required></div>
+                        <div class="col-md-4"><label class="form-label small">Email *</label><input type="email"
+                            name="email" class="form-control form-control-sm" required></div>
+                        <div class="col-md-6"><label class="form-label small">LinkedIn *</label><input type="text"
+                            name="linkedin" class="form-control form-control-sm" required></div>
+                      </div>
                     </div>
 
-                    <div id="nrVendor" class="col-12 row g-2 d-none">
-                      <div class="col-md-6">
-                        <label class="form-label small">Vendor</label>
-                        <select name="vendor_id" id="nrVendorSel" class="form-select form-select-sm"
-                          onchange="loadNrPocs()"></select>
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label small">Vendor POC</label>
-                        <select name="poc_id" id="nrPocSel" class="form-select form-select-sm"></select>
+                    <div id="nrVendor" class="col-12 d-none">
+                      <div class="row g-2">
+                        <div class="col-md-6">
+                          <label class="form-label small">Vendor</label>
+                          <select name="vendor_id" id="nrVendorSel" class="form-select form-select-sm"
+                            onchange="loadNrPocs()"></select>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label small">Vendor POC</label>
+                          <select name="poc_id" id="nrPocSel" class="form-select form-select-sm"></select>
+                        </div>
                       </div>
                     </div>
 

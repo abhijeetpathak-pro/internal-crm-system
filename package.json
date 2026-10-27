@@ -11,7 +11,10 @@
     "reminders": "node scripts/send-task-reminders.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/preferences": "^8.0.1",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "ejs": "^6.0.1",
     "express": "^4.19.2",

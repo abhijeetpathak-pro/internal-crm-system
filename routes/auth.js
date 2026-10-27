@@ -7,6 +7,12 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 // Import database connection pool
 const pool = require('../db');
+const {
+  createRememberToken,
+  deleteRememberToken,
+  REMEMBER_COOKIE_NAME,
+  REMEMBER_DURATION_MS
+} = require('../services/authService');
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -37,6 +43,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   // Extract and normalize credentials from the request body.
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
+  const remember = req.body.remember === 'true' || req.body.remember === 'on' || req.body.remember === true;
   
   // Validate that both email and password are provided
   if (!email || !password) return res.render('login', { error: 'Email and password are required.' });
@@ -65,6 +72,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Store user session data (exclude sensitive info like password_hash)
     req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role, avatar_path: user.avatar_path || null };
     
+    if (remember) {
+      // 30 days session
+      req.session.cookie.maxAge = REMEMBER_DURATION_MS;
+      const rememberData = await createRememberToken(user.id);
+      res.cookie(rememberData.cookieName, rememberData.cookieValue, rememberData.options);
+    } else {
+      req.session.cookie.maxAge = 8 * 60 * 60 * 1000;
+      res.clearCookie(REMEMBER_COOKIE_NAME, { path: '/' });
+    }
+
     // Redirect to dashboard on successful login
     res.redirect('/dashboard');
   } catch (err) {
@@ -76,7 +93,18 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 // GET route to handle user logout
-router.get('/logout', (req, res) => { 
+router.get('/logout', async (req, res) => {
+  try {
+    const rememberCookie = req.cookies ? req.cookies[REMEMBER_COOKIE_NAME] : null;
+    if (rememberCookie) {
+      await deleteRememberToken(rememberCookie);
+    }
+  } catch (err) {
+    console.error('Logout remember token error:', err);
+  }
+
+  res.clearCookie(REMEMBER_COOKIE_NAME, { path: '/' });
+  res.clearCookie('crm_session', { path: '/' });
   // Destroy the session and redirect to login page
   req.session.destroy(() => res.redirect('/login')); 
 });

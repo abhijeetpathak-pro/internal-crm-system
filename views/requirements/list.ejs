@@ -208,18 +208,18 @@
             Requirement</a>
         </div>
 
-        <!-- Share / Not Shared Filter Dropdown -->
-        <div class="d-flex align-items-center gap-2 mb-3">
-          <select id="requirementShareFilter" class="form-select form-select-sm w-auto" onchange="filterRequirements()">
-            <option value="all">All Requirements (Normal)</option>
-            <option value="shared">Shared</option>
-            <option value="not_shared">Not Shared</option>
-          </select>
-          <button class="btn btn-sm btn-outline-secondary" onclick="resetShareFilter()">Reset</button>
-        </div>
+        <!-- Filter Bar -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <div class="d-flex align-items-center gap-1 flex-grow-1" style="min-width: 200px; max-width: 320px;">
+            <select id="requirementShareFilter" class="form-select form-select-sm" onchange="filterRequirements()">
+              <option value="all">All Requirements (Normal)</option>
+              <option value="shared">Shared</option>
+              <option value="not_shared">Not Shared</option>
+            </select>
+            <button class="btn btn-sm btn-outline-secondary text-nowrap" onclick="resetShareFilter()">Reset</button>
+          </div>
 
-        <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
-          <div class="input-group input-group-sm" style="max-width:350px;flex:1 1 220px;">
+          <div class="input-group input-group-sm flex-grow-1" style="min-width: 220px; max-width: 360px;">
             <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-danger"
                 style="font-size:.8rem"></i></span>
             <input type="text" id="reqSearchInput" class="form-control"
@@ -227,7 +227,7 @@
             <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()"><i
                 class="fa-solid fa-times"></i></button>
           </div>
-          <span class="badge bg-secondary" id="resultCount">0 results</span>
+          <span class="badge bg-secondary ms-auto ms-sm-0" id="resultCount">0 results</span>
         </div>
 
         <% if(!groups || !groups.length){ %>
