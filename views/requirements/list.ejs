@@ -9,6 +9,7 @@
           overflow: visible !important;
         }
       }
+
       @media (max-width: 991.98px) {
         .table-wrap {
           overflow-x: auto !important;
@@ -204,8 +205,13 @@
       <%- include('../partials/topbar',{user}) %>
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4 class="fw-semibold mb-0"><i class="fa-solid fa-clipboard-list me-2 text-danger"></i>Requirements</h4>
-          <a href="/requirements/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add
-            Requirement</a>
+          <div class="d-flex align-items-center gap-2">
+            <a id="downloadCsvBtn" href="/api/requirements/export-csv" class="btn btn-success btn-sm" download="requirements_tracking_report.csv"><i
+                class="fa-solid fa-file-excel me-1"></i>Download CSV Track</a>
+            <% if(user.role==='admin'||user.role==='super_admin'||user.role==='emp'){ %>
+            <a href="/requirements/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Requirement</a>
+            <% } %>
+          </div>
         </div>
 
         <!-- Filter Bar -->
@@ -491,6 +497,16 @@
           totalCount += visibleCount;
         });
         document.getElementById('resultCount').textContent = totalCount + ' results';
+
+        // Update CSV export link with current active filters
+        const exportBtn = document.getElementById('downloadCsvBtn');
+        if (exportBtn) {
+          const params = new URLSearchParams();
+          if (shareStatus && shareStatus !== 'all') params.append('share_status', shareStatus);
+          if (q) params.append('search', q);
+          const qs = params.toString();
+          exportBtn.href = '/api/requirements/export-csv' + (qs ? '?' + qs : '');
+        }
       }
 
       function clearSearch() {

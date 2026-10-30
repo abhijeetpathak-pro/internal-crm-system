@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const pool = require('../db'); // Correct relative path to root db.js
-const { requireLogin } = require('../middleware/auth'); // ✅ ADDED
+const pool = require('../db');
+const { requireLogin } = require('../middleware/auth');
 
 // ✅ Global auth guard for this router
 router.use(requireLogin);
@@ -11,7 +11,6 @@ router.use(requireLogin);
 // ======================== MULTER CONFIG ========================
 const fs = require('fs');
 
-// Ensure upload directory exists
 const uploadDir = path.join(__dirname, '..', 'uploads', 'cvs');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -25,7 +24,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// ✅ File filter added
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -171,6 +169,161 @@ router.get('/recent', async (req, res) => {
   } catch (err) {
     console.error('Recent requirements error:', err);
     res.status(500).json([]);
+  }
+});
+
+// ======================== HELPER FUNCTIONS FOR CSV ========================
+function escapeCsv(val) {
+  if (val === null || val === undefined) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+function formatCsvDate(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  const pad = n => String(n).padStart(2, '0');
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear();
+  const hours = pad(date.getHours());
+  const mins = pad(date.getMinutes());
+  const secs = pad(date.getSeconds());
+  return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
+}
+
+// ======================== EXPORT CSV (PLACED BEFORE /:id TO AVOID CONFLICT) ========================
+router.get('/export-csv', async (req, res) => {
+  try {
+    const user = req.session.user;
+    const { status, share_status, search } = req.query;
+
+    let sql = `
+      SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
+             c.company_name AS client_name,
+             p.poc_name,
+             p.poc_phone,
+             p.poc_email,
+             u.name AS submitted_by_name,
+             (
+               SELECT COUNT(*) FROM crm_requirement_resources rr 
+               WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
+             ) AS mapped_profile_count
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      LEFT JOIN crm_pocs p ON r.poc_id = p.id
+      LEFT JOIN crm_users u ON r.created_by = u.id
+    `;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (user && user.role === 'emp') {
+      whereClauses.push('r.created_by = ?');
+      params.push(user.id);
+    }
+
+    if (status && status !== 'all') {
+      whereClauses.push('r.status = ?');
+      params.push(status);
+    }
+
+    if (share_status === 'shared') {
+      whereClauses.push('r.is_shared = 1');
+    } else if (share_status === 'not_shared') {
+      whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push('(r.title LIKE ? OR c.company_name LIKE ? OR r.location LIKE ?)');
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY r.id DESC';
+
+    const [rows] = await pool.query(sql, params);
+
+    const candidateMap = new Map();
+    if (rows.length > 0) {
+      try {
+        const reqIds = rows.map(r => r.id);
+        const [candidateRows] = await pool.query(
+          `SELECT rr.requirement_id, rr.stage, res.resource_name, res.unique_uid
+           FROM crm_requirement_resources rr
+           JOIN crm_resources res ON res.id = rr.resource_id
+           WHERE rr.requirement_id IN (?)
+           ORDER BY rr.id ASC`,
+          [reqIds]
+        );
+        for (const c of candidateRows) {
+          if (!candidateMap.has(c.requirement_id)) {
+            candidateMap.set(c.requirement_id, []);
+          }
+          candidateMap.get(c.requirement_id).push(`${c.resource_name || 'Candidate'} (${c.stage})`);
+        }
+      } catch (mapErr) {
+        console.warn('Candidate tracking mapping skipped:', mapErr.message);
+      }
+    }
+
+    const headers = [
+      'Requirement ID',
+      'Title',
+      'Client',
+      'POC Name',
+      'POC Phone',
+      'Location',
+      'Status',
+      'Budget',
+      'Profile Shared Status',
+      'Mapped Profiles Count',
+      'Candidate Stages Tracking',
+      'Submitted By',
+      'Created Date'
+    ];
+
+    const csvLines = [headers.map(escapeCsv).join(',')];
+
+    for (const row of rows) {
+      const sharedStatus = row.is_shared == 1 ? 'Shared' : 'Not Shared';
+      const createdDate = formatCsvDate(row.created_at);
+      const candidates = (candidateMap.get(row.id) || []).join('; ');
+
+      const line = [
+        `#${row.id}`,
+        row.title || '',
+        row.client_name || '',
+        row.poc_name || '',
+        row.poc_phone || '',
+        row.location || '',
+        row.status || 'Open',
+        row.budget || '',
+        sharedStatus,
+        row.mapped_profile_count || 0,
+        candidates,
+        row.submitted_by_name || '',
+        createdDate
+      ].map(escapeCsv).join(',');
+
+      csvLines.push(line);
+    }
+
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvLines.join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="requirements_tracking_report.csv"');
+    return res.status(200).send(csvContent);
+
+  } catch (err) {
+    console.error('CSV Export Error:', err);
+    res.status(500).send('Failed to generate CSV file: ' + err.message);
   }
 });
 
@@ -427,7 +580,6 @@ router.post('/:id/status', async (req, res) => {
 });
 
 // ======================== MAP RESOURCE ========================
-// ✅ FIXED: Simplified middleware chain + better error handling
 router.post('/:id/map-resource', (req, res, next) => {
   upload.single('cv')(req, res, (err) => {
     if (err) {
@@ -437,14 +589,6 @@ router.post('/:id/map-resource', (req, res, next) => {
   });
 }, async (req, res) => {
   const reqId = req.params.id;
-
-  // ✅ Log incoming request for debugging
-  console.log('📥 map-resource called:', {
-    reqId,
-    contentType: req.headers['content-type'],
-    bodyKeys: Object.keys(req.body || {}),
-    hasFile: !!req.file
-  });
 
   try {
     const [reqRows] = await pool.query('SELECT id FROM crm_requirements WHERE id=?', [reqId]);
@@ -456,7 +600,6 @@ router.post('/:id/map-resource', (req, res, next) => {
 
       let resourceId;
 
-      // ── Case 1: Existing resource (JSON body from "Select From Database") ──
       if (req.body.resource_id) {
         resourceId = parseInt(req.body.resource_id);
         const [rRows] = await conn.query('SELECT id FROM crm_resources WHERE id=?', [resourceId]);
@@ -464,9 +607,7 @@ router.post('/:id/map-resource', (req, res, next) => {
           await conn.rollback();
           return res.status(404).json({ error: 'Resource not found.' });
         }
-      }
-      // ── Case 2: New resource (multipart/form-data from "Add New Resource") ──
-      else {
+      } else {
         const b = req.body;
         if (!b.resource_name || !b.skills || !b.type) {
           await conn.rollback();
@@ -722,22 +863,18 @@ async function handleUnmapResource(req, res, reqId, targetResourceId) {
   }
 }
 
-// DELETE /api/requirements/:id/resource/:resourceId
 router.delete('/:id/resource/:resourceId', (req, res) => {
   return handleUnmapResource(req, res, req.params.id, req.params.resourceId);
 });
 
-// POST /api/requirements/:id/resource/:resourceId/remove
 router.post('/:id/resource/:resourceId/remove', (req, res) => {
   return handleUnmapResource(req, res, req.params.id, req.params.resourceId);
 });
 
-// POST /api/requirements/:id/unmap
 router.post('/:id/unmap', (req, res) => {
   return handleUnmapResource(req, res, req.params.id, req.body.resource_id || null);
 });
 
-// PUT /api/requirements/:id/unmap
 router.put('/:id/unmap', (req, res) => {
   return handleUnmapResource(req, res, req.params.id, req.body.resource_id || null);
 });

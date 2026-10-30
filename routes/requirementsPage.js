@@ -250,10 +250,176 @@ router.get('/api/requirements/recent', async (req, res) => {
 });
 
 /**
+ * Helper to escape CSV values according to RFC 4180
+ */
+function escapeCsv(val) {
+  if (val === null || val === undefined) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+/**
+ * Format timestamp as DD-MM-YYYY HH:mm:ss
+ */
+function formatCsvDate(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  const pad = n => String(n).padStart(2, '0');
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear();
+  const hours = pad(date.getHours());
+  const mins = pad(date.getMinutes());
+  const secs = pad(date.getSeconds());
+  return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
+}
+
+/**
+ * ─── 3b. EXPORT: GET /api/requirements/export-csv & /requirements/export-csv ──
+ * API: Download Requirements CSV Tracking Report
+ */
+router.get(['/api/requirements/export-csv', '/requirements/export-csv'], async (req, res) => {
+  try {
+    const user = req.session.user;
+    const { status, share_status, search } = req.query;
+
+    let sql = `
+      SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
+             c.company_name AS client_name,
+             p.poc_name,
+             p.poc_phone,
+             p.poc_email,
+             u.name AS submitted_by_name,
+             (
+               SELECT COUNT(*) FROM crm_requirement_resources rr 
+               WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
+             ) AS mapped_profile_count
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      LEFT JOIN crm_pocs p ON r.poc_id = p.id
+      LEFT JOIN crm_users u ON r.created_by = u.id
+    `;
+
+    const whereClauses = [];
+    const params = [];
+
+    // Role-based security: employees only export their own created requirements
+    if (user && user.role === 'emp') {
+      whereClauses.push('r.created_by = ?');
+      params.push(user.id);
+    }
+
+    if (status && status !== 'all') {
+      whereClauses.push('r.status = ?');
+      params.push(status);
+    }
+
+    if (share_status === 'shared') {
+      whereClauses.push('r.is_shared = 1');
+    } else if (share_status === 'not_shared') {
+      whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push('(r.title LIKE ? OR c.company_name LIKE ? OR r.location LIKE ?)');
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY r.id DESC';
+
+    const [rows] = await pool.query(sql, params);
+
+    // Fetch mapped candidates with stages for tracking breakdown
+    const candidateMap = new Map();
+    if (rows.length > 0) {
+      try {
+        const reqIds = rows.map(r => r.id);
+        const [candidateRows] = await pool.query(
+          `SELECT rr.requirement_id, rr.stage, res.resource_name, res.unique_uid
+           FROM crm_requirement_resources rr
+           JOIN crm_resources res ON res.id = rr.resource_id
+           WHERE rr.requirement_id IN (?)
+           ORDER BY rr.id ASC`,
+          [reqIds]
+        );
+        for (const c of candidateRows) {
+          if (!candidateMap.has(c.requirement_id)) {
+            candidateMap.set(c.requirement_id, []);
+          }
+          candidateMap.get(c.requirement_id).push(`${c.resource_name || 'Candidate'} (${c.stage})`);
+        }
+      } catch (mapErr) {
+        console.warn('Candidate tracking mapping skipped:', mapErr.message);
+      }
+    }
+
+    const headers = [
+      'Requirement ID',
+      'Title',
+      'Client',
+      'POC Name',
+      'POC Phone',
+      'Location',
+      'Status',
+      'Budget',
+      'Profile Shared Status',
+      'Mapped Profiles Count',
+      'Candidate Stages Tracking',
+      'Submitted By',
+      'Created Date'
+    ];
+
+    const csvLines = [headers.map(escapeCsv).join(',')];
+
+    for (const row of rows) {
+      const sharedStatus = row.is_shared == 1 ? 'Shared' : 'Not Shared';
+      const createdDate = formatCsvDate(row.created_at);
+      const candidates = (candidateMap.get(row.id) || []).join('; ');
+
+      const line = [
+        `#${row.id}`,
+        row.title || '',
+        row.client_name || '',
+        row.poc_name || '',
+        row.poc_phone || '',
+        row.location || '',
+        row.status || 'Open',
+        row.budget || '',
+        sharedStatus,
+        row.mapped_profile_count || 0,
+        candidates,
+        row.submitted_by_name || '',
+        createdDate
+      ].map(escapeCsv).join(',');
+
+      csvLines.push(line);
+    }
+
+    // Include UTF-8 BOM for Microsoft Excel compatibility
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvLines.join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="requirements_tracking_report.csv"');
+    return res.status(200).send(csvContent);
+
+  } catch (err) {
+    console.error('Requirements CSV Export Error:', err);
+    return res.status(500).send('Failed to generate CSV export file: ' + err.message);
+  }
+});
+
+/**
  * ─── 4. API: GET /api/requirements/:id ───────────────────────────────────────
  * API: Fetch single requirement details for AJAX Edit Modal
  */
-router.get('/api/requirements/:id', async (req, res) => {
+router.get('/api/requirements/:id(\\d+)', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM crm_requirements WHERE id = ?', [req.params.id]);
     if (!rows.length) {
