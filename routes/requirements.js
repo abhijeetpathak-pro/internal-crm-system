@@ -195,8 +195,19 @@ function formatCsvDate(d) {
   return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
 }
 
+function requireTrackAccess(req, res, next) {
+  const user = req.session.user;
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    if (req.xhr || req.headers.accept?.indexOf('json') > -1 || req.path.includes('/export-data')) {
+      return res.status(403).json({ success: false, message: 'Access Denied: Only Admin and Super Admin can access export.' });
+    }
+    return res.status(403).send('Access Denied: Only Admin and Super Admin can access track reports.');
+  }
+  next();
+}
+
 // ======================== EXPORT DATA (JSON for PDF generation) ========================
-router.get('/export-data', async (req, res) => {
+router.get('/export-data', requireTrackAccess, async (req, res) => {
   try {
     const user = req.session.user;
     const { status, share_status, search, from_date, to_date } = req.query;
@@ -268,7 +279,7 @@ router.get('/export-data', async (req, res) => {
 });
 
 // ======================== EXPORT CSV (PLACED BEFORE /:id TO AVOID CONFLICT) ========================
-router.get('/export-csv', async (req, res) => {
+router.get('/export-csv', requireTrackAccess, async (req, res) => {
   try {
     const user = req.session.user;
     const { status, share_status, search, from_date, to_date } = req.query;
@@ -412,7 +423,7 @@ router.get('/export-csv', async (req, res) => {
 });
 
 // ======================== EXPORT PDF (PLACED BEFORE /:id TO AVOID CONFLICT) ========================
-router.get('/export-pdf', async (req, res) => {
+router.get('/export-pdf', requireTrackAccess, async (req, res) => {
   try {
     const user = req.session.user;
     const { status, share_status, search, from_date, to_date } = req.query;

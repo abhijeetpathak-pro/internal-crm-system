@@ -373,10 +373,24 @@ async function getFilteredRequirementsForExport(user, query) {
 }
 
 /**
+ * Role Check: Only Admin and Super Admin can access Track export
+ */
+function requireTrackAccess(req, res, next) {
+  const user = req.session.user;
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    if (req.xhr || req.headers.accept?.indexOf('json') > -1 || req.path.includes('/export-data')) {
+      return res.status(403).json({ success: false, message: 'Access Denied: Only Admin and Super Admin can access export.' });
+    }
+    return res.status(403).send('Access Denied: Only Admin and Super Admin can access track reports.');
+  }
+  next();
+}
+
+/**
  * ─── 3b. EXPORT: GET /api/requirements/export-data & /requirements/export-data ──
  * API: Returns filtered requirements JSON for client-side PDF generation
  */
-router.get(['/api/requirements/export-data', '/requirements/export-data'], async (req, res) => {
+router.get(['/api/requirements/export-data', '/requirements/export-data'], requireTrackAccess, async (req, res) => {
   try {
     const { rows, candidateMap } = await getFilteredRequirementsForExport(req.session.user, req.query);
     const enriched = rows.map(r => ({
@@ -394,7 +408,7 @@ router.get(['/api/requirements/export-data', '/requirements/export-data'], async
  * ─── 3c. EXPORT: GET /api/requirements/export-csv & /requirements/export-csv ──
  * API: Download Requirements CSV Tracking Report
  */
-router.get(['/api/requirements/export-csv', '/requirements/export-csv'], async (req, res) => {
+router.get(['/api/requirements/export-csv', '/requirements/export-csv'], requireTrackAccess, async (req, res) => {
   try {
     const { rows, candidateMap } = await getFilteredRequirementsForExport(req.session.user, req.query);
 
@@ -458,7 +472,7 @@ router.get(['/api/requirements/export-csv', '/requirements/export-csv'], async (
  * ─── 3d. EXPORT: GET /requirements/export-print ──────────────────────────────
  * View: Printable / PDF View of Filtered Requirements Report
  */
-router.get(['/requirements/export-print', '/api/requirements/export-print'], async (req, res) => {
+router.get(['/requirements/export-print', '/api/requirements/export-print'], requireTrackAccess, async (req, res) => {
   try {
     const { rows, candidateMap } = await getFilteredRequirementsForExport(req.session.user, req.query);
     const enriched = rows.map(r => ({
@@ -488,7 +502,7 @@ router.get(['/requirements/export-print', '/api/requirements/export-print'], asy
  * ─── 3e. EXPORT: GET /api/requirements/export-pdf & /requirements/export-pdf ─
  * API: Download Requirements PDF Tracking Report directly as a file
  */
-router.get(['/api/requirements/export-pdf', '/requirements/export-pdf'], async (req, res) => {
+router.get(['/api/requirements/export-pdf', '/requirements/export-pdf'], requireTrackAccess, async (req, res) => {
   try {
     const { rows } = await getFilteredRequirementsForExport(req.session.user, req.query);
 

@@ -224,9 +224,11 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4 class="fw-semibold mb-0"><i class="fa-solid fa-clipboard-list me-2 text-danger"></i>Requirements</h4>
           <div class="d-flex align-items-center gap-2">
+            <% if (user && (user.role === 'admin' || user.role === 'super_admin')) { %>
             <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#exportModal" onclick="openExportModal()">
               <i class="fa-solid fa-file-export me-1"></i>Download Track (CSV / PDF)
             </button>
+            <% } %>
             <% if(user.role==='admin'||user.role==='super_admin'||user.role==='emp'){ %>
             <a href="/requirements/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Requirement</a>
             <% } %>
