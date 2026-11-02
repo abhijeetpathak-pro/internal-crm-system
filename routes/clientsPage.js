@@ -43,7 +43,7 @@ router.get('/clients', async (req, res) => {
 // ─── Add Client ───
 // Naya client add karne ka form page
 // Sirf form render karta hai, actual insertion nahi karta
-router.get('/clients/add', requireAdmin, (req, res) => {
+router.get('/clients/add', (req, res) => {
   // Add client form render karna
   res.render('clients/add', { 
     user: req.session.user, 

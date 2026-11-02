@@ -41,7 +41,7 @@ router.get('/vendors', async (req, res) => {
 // ─── GET add vendor form ──────────────────────────────────────────────────
 // Naya vendor add karne ka form page
 // Sirf form render karta hai, actual insertion nahi karta
-router.get('/vendors/add', requireAdmin, (req, res) => {
+router.get('/vendors/add', (req, res) => {
   // Add vendor form render karna
   res.render('vendors/add', { 
     user: req.session.user, 

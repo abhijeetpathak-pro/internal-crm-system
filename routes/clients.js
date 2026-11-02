@@ -56,7 +56,7 @@ router.get('/:id', async (req, res) => {
 // ─── POST create client ────────────────────────────────────────────────────
 // Endpoint to create a new client
 // Naya client create karne ke liye endpoint
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', async (req, res) => {
   // Extract client details from request body
   // Request body se client ki details extract karna
   const { company_name, website, address, email, phone } = req.body;
