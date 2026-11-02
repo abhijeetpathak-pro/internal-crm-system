@@ -4,6 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const pool = require('../db');
 const { requireLogin } = require('../middleware/auth');
+const { jsPDF } = require(path.join(__dirname, '..', 'public', 'js', 'jspdf.umd.min.js'));
+const autoTable = require(path.join(__dirname, '..', 'public', 'js', 'jspdf.plugin.autotable.min.js'));
 
 // ✅ Global auth guard for this router
 router.use(requireLogin);
@@ -406,6 +408,156 @@ router.get('/export-csv', async (req, res) => {
   } catch (err) {
     console.error('CSV Export Error:', err);
     res.status(500).send('Failed to generate CSV file: ' + err.message);
+  }
+});
+
+// ======================== EXPORT PDF (PLACED BEFORE /:id TO AVOID CONFLICT) ========================
+router.get('/export-pdf', async (req, res) => {
+  try {
+    const user = req.session.user;
+    const { status, share_status, search, from_date, to_date } = req.query;
+
+    let sql = `
+      SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
+             c.company_name AS client_name,
+             p.poc_name,
+             p.poc_phone,
+             p.poc_email,
+             u.name AS submitted_by_name,
+             (
+               SELECT COUNT(*) FROM crm_requirement_resources rr 
+               WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
+             ) AS mapped_profile_count
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      LEFT JOIN crm_pocs p ON r.poc_id = p.id
+      LEFT JOIN crm_users u ON r.created_by = u.id
+    `;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (user && user.role === 'emp') {
+      whereClauses.push('r.created_by = ?');
+      params.push(user.id);
+    }
+
+    if (status && status !== 'all') {
+      whereClauses.push('r.status = ?');
+      params.push(status);
+    }
+
+    if (share_status === 'shared') {
+      whereClauses.push('r.is_shared = 1');
+    } else if (share_status === 'not_shared') {
+      whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
+    }
+
+    if (from_date && from_date.trim()) {
+      whereClauses.push('DATE(r.created_at) >= ?');
+      params.push(from_date.trim());
+    }
+
+    if (to_date && to_date.trim()) {
+      whereClauses.push('DATE(r.created_at) <= ?');
+      params.push(to_date.trim());
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push('(r.title LIKE ? OR c.company_name LIKE ? OR r.location LIKE ?)');
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY r.id DESC';
+
+    const [rows] = await pool.query(sql, params);
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(192, 57, 43);
+    doc.text('CWA CRM — Requirements Tracking Report', 30, 32);
+
+    const shareLabel = share_status === 'shared' ? 'Shared Only' : (share_status === 'not_shared' ? 'Not Shared Only' : 'All Requirements');
+    const dateLabel = (from_date || to_date) ? `${from_date || 'Start'} to ${to_date || 'Present'}` : 'All Dates';
+    const genDate = new Date().toLocaleString('en-IN');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Filter: ${shareLabel}   |   Date Range: ${dateLabel}   |   Total Records: ${rows.length}   |   Generated: ${genDate}`, 30, 46);
+
+    const headers = [['ID', 'Title', 'Client', 'POC', 'Location', 'Status', 'Budget', 'Shared', 'Profiles', 'Submitted By', 'Date']];
+
+    const tableRows = rows.map(r => {
+      const sharedText = r.is_shared == 1 ? 'Shared' : 'Not Shared';
+      const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '—';
+      const pocInfo = [r.poc_name, r.poc_phone].filter(Boolean).join(' - ') || '—';
+      return [
+        `#${r.id}`,
+        r.title || '—',
+        r.client_name || '—',
+        pocInfo,
+        r.location || '—',
+        r.status || 'Open',
+        r.budget || '—',
+        sharedText,
+        String(r.mapped_profile_count || 0),
+        r.submitted_by_name || '—',
+        dateStr
+      ];
+    });
+
+    autoTable.default(doc, {
+      startY: 56,
+      head: headers,
+      body: tableRows,
+      theme: 'striped',
+      tableWidth: 'auto',
+      headStyles: {
+        fillColor: [192, 57, 43],
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 3.5,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        5: { cellWidth: 45 },
+        7: { cellWidth: 55 },
+        8: { cellWidth: 40, halign: 'center' },
+        10: { cellWidth: 60 }
+      },
+      alternateRowStyles: { fillColor: [250, 250, 251] },
+      margin: { left: 30, right: 30, bottom: 30 },
+      didDrawPage: function (data) {
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        const pageStr = 'Page ' + doc.internal.getNumberOfPages();
+        doc.text(pageStr, doc.internal.pageSize.width - 60, doc.internal.pageSize.height - 15);
+      }
+    });
+
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="requirements_tracking_report.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.status(200).send(pdfBuffer);
+
+  } catch (err) {
+    console.error('PDF Export Error:', err);
+    res.status(500).send('Failed to generate PDF file: ' + err.message);
   }
 });
 

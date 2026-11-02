@@ -10,8 +10,11 @@
 
 const express = require('express');
 const router = express.Router();
+const path = require('path');
 const pool = require('../db'); // MySQL Database Pool Connection
 const { requireLogin } = require('../middleware/auth'); // Authentication Guard Middleware
+const { jsPDF } = require(path.join(__dirname, '..', 'public', 'js', 'jspdf.umd.min.js'));
+const autoTable = require(path.join(__dirname, '..', 'public', 'js', 'jspdf.plugin.autotable.min.js'));
 
 // ── Global Security: Ensure User is Logged In for all routes in this file ──
 router.use(requireLogin);
@@ -478,6 +481,103 @@ router.get(['/requirements/export-print', '/api/requirements/export-print'], asy
       message: 'Failed to generate print report: ' + err.message,
       user: req.session.user
     });
+  }
+});
+
+/**
+ * ─── 3e. EXPORT: GET /api/requirements/export-pdf & /requirements/export-pdf ─
+ * API: Download Requirements PDF Tracking Report directly as a file
+ */
+router.get(['/api/requirements/export-pdf', '/requirements/export-pdf'], async (req, res) => {
+  try {
+    const { rows } = await getFilteredRequirementsForExport(req.session.user, req.query);
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+    // Header Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(192, 57, 43); // #C0392B
+    doc.text('CWA CRM — Requirements Tracking Report', 30, 32);
+
+    // Filter Subtitle
+    const shareStatus = req.query.share_status;
+    const fromDate = req.query.from_date;
+    const toDate = req.query.to_date;
+    const shareLabel = shareStatus === 'shared' ? 'Shared Only' : (shareStatus === 'not_shared' ? 'Not Shared Only' : 'All Requirements');
+    const dateLabel = (fromDate || toDate) ? `${fromDate || 'Start'} to ${toDate || 'Present'}` : 'All Dates';
+    const genDate = new Date().toLocaleString('en-IN');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Filter: ${shareLabel}   |   Date Range: ${dateLabel}   |   Total Records: ${rows.length}   |   Generated: ${genDate}`, 30, 46);
+
+    const headers = [['ID', 'Title', 'Client', 'POC', 'Location', 'Status', 'Budget', 'Shared', 'Profiles', 'Submitted By', 'Date']];
+
+    const tableRows = rows.map(r => {
+      const sharedText = r.is_shared == 1 ? 'Shared' : 'Not Shared';
+      const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '—';
+      const pocInfo = [r.poc_name, r.poc_phone].filter(Boolean).join(' - ') || '—';
+      return [
+        `#${r.id}`,
+        r.title || '—',
+        r.client_name || '—',
+        pocInfo,
+        r.location || '—',
+        r.status || 'Open',
+        r.budget || '—',
+        sharedText,
+        String(r.mapped_profile_count || 0),
+        r.submitted_by_name || '—',
+        dateStr
+      ];
+    });
+
+    autoTable.default(doc, {
+      startY: 56,
+      head: headers,
+      body: tableRows,
+      theme: 'striped',
+      tableWidth: 'auto',
+      headStyles: {
+        fillColor: [192, 57, 43],
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 3.5,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        5: { cellWidth: 45 },
+        7: { cellWidth: 55 },
+        8: { cellWidth: 40, halign: 'center' },
+        10: { cellWidth: 60 }
+      },
+      alternateRowStyles: { fillColor: [250, 250, 251] },
+      margin: { left: 30, right: 30, bottom: 30 },
+      didDrawPage: function (data) {
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        const pageStr = 'Page ' + doc.internal.getNumberOfPages();
+        doc.text(pageStr, doc.internal.pageSize.width - 60, doc.internal.pageSize.height - 15);
+      }
+    });
+
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="requirements_tracking_report.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.status(200).send(pdfBuffer);
+
+  } catch (err) {
+    console.error('Requirements PDF Export Error:', err);
+    return res.status(500).send('Failed to generate PDF export: ' + err.message);
   }
 });
 

@@ -681,9 +681,9 @@
           return;
         }
 
-        // If PDF format: open print preview in new tab
+        // If PDF format: direct browser download as PDF file (no pop-up blocking)
         if (format === 'pdf') {
-          window.open('/requirements/export-print' + qs, '_blank');
+          window.location.href = '/api/requirements/export-pdf' + qs;
           closeExportModal();
           return;
         }
