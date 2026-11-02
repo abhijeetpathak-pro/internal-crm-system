@@ -193,11 +193,11 @@ function formatCsvDate(d) {
   return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
 }
 
-// ======================== EXPORT CSV (PLACED BEFORE /:id TO AVOID CONFLICT) ========================
-router.get('/export-csv', async (req, res) => {
+// ======================== EXPORT DATA (JSON for PDF generation) ========================
+router.get('/export-data', async (req, res) => {
   try {
     const user = req.session.user;
-    const { status, share_status, search } = req.query;
+    const { status, share_status, search, from_date, to_date } = req.query;
 
     let sql = `
       SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
@@ -233,6 +233,88 @@ router.get('/export-csv', async (req, res) => {
       whereClauses.push('r.is_shared = 1');
     } else if (share_status === 'not_shared') {
       whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
+    }
+
+    if (from_date && from_date.trim()) {
+      whereClauses.push('DATE(r.created_at) >= ?');
+      params.push(from_date.trim());
+    }
+
+    if (to_date && to_date.trim()) {
+      whereClauses.push('DATE(r.created_at) <= ?');
+      params.push(to_date.trim());
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push('(r.title LIKE ? OR c.company_name LIKE ? OR r.location LIKE ?)');
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY r.id DESC';
+
+    const [rows] = await pool.query(sql, params);
+    res.json({ success: true, count: rows.length, data: rows });
+  } catch (err) {
+    console.error('API Export Data Error:', err);
+    res.status(500).json({ success: false, message: 'Database error: ' + err.message });
+  }
+});
+
+// ======================== EXPORT CSV (PLACED BEFORE /:id TO AVOID CONFLICT) ========================
+router.get('/export-csv', async (req, res) => {
+  try {
+    const user = req.session.user;
+    const { status, share_status, search, from_date, to_date } = req.query;
+
+    let sql = `
+      SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
+             c.company_name AS client_name,
+             p.poc_name,
+             p.poc_phone,
+             p.poc_email,
+             u.name AS submitted_by_name,
+             (
+               SELECT COUNT(*) FROM crm_requirement_resources rr 
+               WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
+             ) AS mapped_profile_count
+      FROM crm_requirements r
+      LEFT JOIN crm_clients c ON r.client_id = c.id
+      LEFT JOIN crm_pocs p ON r.poc_id = p.id
+      LEFT JOIN crm_users u ON r.created_by = u.id
+    `;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (user && user.role === 'emp') {
+      whereClauses.push('r.created_by = ?');
+      params.push(user.id);
+    }
+
+    if (status && status !== 'all') {
+      whereClauses.push('r.status = ?');
+      params.push(status);
+    }
+
+    if (share_status === 'shared') {
+      whereClauses.push('r.is_shared = 1');
+    } else if (share_status === 'not_shared') {
+      whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
+    }
+
+    if (from_date && from_date.trim()) {
+      whereClauses.push('DATE(r.created_at) >= ?');
+      params.push(from_date.trim());
+    }
+
+    if (to_date && to_date.trim()) {
+      whereClauses.push('DATE(r.created_at) <= ?');
+      params.push(to_date.trim());
     }
 
     if (search && search.trim()) {
@@ -387,7 +469,7 @@ router.get('/:id', async (req, res) => {
       SELECT rr.id AS rr_id, rr.stage, rr.requirement_id,
              res.id AS id, res.id AS resource_id, res.resource_name, res.skills, res.unique_uid,
              v.vendor_name
-      FROM crm_requirement_resources rr
+        FROM crm_requirement_resources rr
       JOIN crm_resources res ON rr.resource_id = res.id
       LEFT JOIN crm_vendors v ON res.vendor_id = v.id
       WHERE rr.requirement_id = ?

@@ -276,88 +276,124 @@ function formatCsvDate(d) {
 }
 
 /**
- * ─── 3b. EXPORT: GET /api/requirements/export-csv & /requirements/export-csv ──
+ * Helper to build SQL and params for Requirements Export (shared by CSV & JSON/PDF)
+ */
+async function getFilteredRequirementsForExport(user, query) {
+  const { status, share_status, search, from_date, to_date } = query;
+
+  let sql = `
+    SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
+           c.company_name AS client_name,
+           p.poc_name,
+           p.poc_phone,
+           p.poc_email,
+           u.name AS submitted_by_name,
+           (
+             SELECT COUNT(*) FROM crm_requirement_resources rr 
+             WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
+           ) AS mapped_profile_count
+    FROM crm_requirements r
+    LEFT JOIN crm_clients c ON r.client_id = c.id
+    LEFT JOIN crm_pocs p ON r.poc_id = p.id
+    LEFT JOIN crm_users u ON r.created_by = u.id
+  `;
+
+  const whereClauses = [];
+  const params = [];
+
+  // Role-based security: employees only export their own created requirements
+  if (user && user.role === 'emp') {
+    whereClauses.push('r.created_by = ?');
+    params.push(user.id);
+  }
+
+  if (status && status !== 'all') {
+    whereClauses.push('r.status = ?');
+    params.push(status);
+  }
+
+  if (share_status === 'shared') {
+    whereClauses.push('r.is_shared = 1');
+  } else if (share_status === 'not_shared') {
+    whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
+  }
+
+  if (from_date && from_date.trim()) {
+    whereClauses.push('DATE(r.created_at) >= ?');
+    params.push(from_date.trim());
+  }
+
+  if (to_date && to_date.trim()) {
+    whereClauses.push('DATE(r.created_at) <= ?');
+    params.push(to_date.trim());
+  }
+
+  if (search && search.trim()) {
+    whereClauses.push('(r.title LIKE ? OR c.company_name LIKE ? OR r.location LIKE ?)');
+    const s = `%${search.trim()}%`;
+    params.push(s, s, s);
+  }
+
+  if (whereClauses.length > 0) {
+    sql += ' WHERE ' + whereClauses.join(' AND ');
+  }
+
+  sql += ' ORDER BY r.id DESC';
+
+  const [rows] = await pool.query(sql, params);
+
+  // Fetch mapped candidates with stages for tracking breakdown
+  const candidateMap = new Map();
+  if (rows.length > 0) {
+    try {
+      const reqIds = rows.map(r => r.id);
+      const [candidateRows] = await pool.query(
+        `SELECT rr.requirement_id, rr.stage, res.resource_name, res.unique_uid
+         FROM crm_requirement_resources rr
+         JOIN crm_resources res ON res.id = rr.resource_id
+         WHERE rr.requirement_id IN (?)
+         ORDER BY rr.id ASC`,
+        [reqIds]
+      );
+      for (const c of candidateRows) {
+        if (!candidateMap.has(c.requirement_id)) {
+          candidateMap.set(c.requirement_id, []);
+        }
+        candidateMap.get(c.requirement_id).push(`${c.resource_name || 'Candidate'} (${c.stage})`);
+      }
+    } catch (mapErr) {
+      console.warn('Candidate tracking mapping skipped:', mapErr.message);
+    }
+  }
+
+  return { rows, candidateMap };
+}
+
+/**
+ * ─── 3b. EXPORT: GET /api/requirements/export-data & /requirements/export-data ──
+ * API: Returns filtered requirements JSON for client-side PDF generation
+ */
+router.get(['/api/requirements/export-data', '/requirements/export-data'], async (req, res) => {
+  try {
+    const { rows, candidateMap } = await getFilteredRequirementsForExport(req.session.user, req.query);
+    const enriched = rows.map(r => ({
+      ...r,
+      candidate_stages: (candidateMap.get(r.id) || []).join('; ')
+    }));
+    res.json({ success: true, count: enriched.length, data: enriched });
+  } catch (err) {
+    console.error('Requirements Export Data Error:', err);
+    res.status(500).json({ success: false, message: 'Database error: ' + err.message });
+  }
+});
+
+/**
+ * ─── 3c. EXPORT: GET /api/requirements/export-csv & /requirements/export-csv ──
  * API: Download Requirements CSV Tracking Report
  */
 router.get(['/api/requirements/export-csv', '/requirements/export-csv'], async (req, res) => {
   try {
-    const user = req.session.user;
-    const { status, share_status, search } = req.query;
-
-    let sql = `
-      SELECT r.id, r.title, r.status, r.budget, r.location, r.is_shared, r.created_at,
-             c.company_name AS client_name,
-             p.poc_name,
-             p.poc_phone,
-             p.poc_email,
-             u.name AS submitted_by_name,
-             (
-               SELECT COUNT(*) FROM crm_requirement_resources rr 
-               WHERE rr.requirement_id = r.id AND rr.stage != 'Reject'
-             ) AS mapped_profile_count
-      FROM crm_requirements r
-      LEFT JOIN crm_clients c ON r.client_id = c.id
-      LEFT JOIN crm_pocs p ON r.poc_id = p.id
-      LEFT JOIN crm_users u ON r.created_by = u.id
-    `;
-
-    const whereClauses = [];
-    const params = [];
-
-    // Role-based security: employees only export their own created requirements
-    if (user && user.role === 'emp') {
-      whereClauses.push('r.created_by = ?');
-      params.push(user.id);
-    }
-
-    if (status && status !== 'all') {
-      whereClauses.push('r.status = ?');
-      params.push(status);
-    }
-
-    if (share_status === 'shared') {
-      whereClauses.push('r.is_shared = 1');
-    } else if (share_status === 'not_shared') {
-      whereClauses.push('(r.is_shared = 0 OR r.is_shared IS NULL)');
-    }
-
-    if (search && search.trim()) {
-      whereClauses.push('(r.title LIKE ? OR c.company_name LIKE ? OR r.location LIKE ?)');
-      const s = `%${search.trim()}%`;
-      params.push(s, s, s);
-    }
-
-    if (whereClauses.length > 0) {
-      sql += ' WHERE ' + whereClauses.join(' AND ');
-    }
-
-    sql += ' ORDER BY r.id DESC';
-
-    const [rows] = await pool.query(sql, params);
-
-    // Fetch mapped candidates with stages for tracking breakdown
-    const candidateMap = new Map();
-    if (rows.length > 0) {
-      try {
-        const reqIds = rows.map(r => r.id);
-        const [candidateRows] = await pool.query(
-          `SELECT rr.requirement_id, rr.stage, res.resource_name, res.unique_uid
-           FROM crm_requirement_resources rr
-           JOIN crm_resources res ON res.id = rr.resource_id
-           WHERE rr.requirement_id IN (?)
-           ORDER BY rr.id ASC`,
-          [reqIds]
-        );
-        for (const c of candidateRows) {
-          if (!candidateMap.has(c.requirement_id)) {
-            candidateMap.set(c.requirement_id, []);
-          }
-          candidateMap.get(c.requirement_id).push(`${c.resource_name || 'Candidate'} (${c.stage})`);
-        }
-      } catch (mapErr) {
-        console.warn('Candidate tracking mapping skipped:', mapErr.message);
-      }
-    }
+    const { rows, candidateMap } = await getFilteredRequirementsForExport(req.session.user, req.query);
 
     const headers = [
       'Requirement ID',
@@ -412,6 +448,36 @@ router.get(['/api/requirements/export-csv', '/requirements/export-csv'], async (
   } catch (err) {
     console.error('Requirements CSV Export Error:', err);
     return res.status(500).send('Failed to generate CSV export file: ' + err.message);
+  }
+});
+
+/**
+ * ─── 3d. EXPORT: GET /requirements/export-print ──────────────────────────────
+ * View: Printable / PDF View of Filtered Requirements Report
+ */
+router.get(['/requirements/export-print', '/api/requirements/export-print'], async (req, res) => {
+  try {
+    const { rows, candidateMap } = await getFilteredRequirementsForExport(req.session.user, req.query);
+    const enriched = rows.map(r => ({
+      ...r,
+      candidate_stages: (candidateMap.get(r.id) || []).join('; ')
+    }));
+
+    res.render('requirements/export-print', {
+      requirements: enriched,
+      filters: {
+        share_status: req.query.share_status || 'all',
+        from_date: req.query.from_date || '',
+        to_date: req.query.to_date || ''
+      },
+      user: req.session.user
+    });
+  } catch (err) {
+    console.error('Requirements print export error:', err);
+    res.status(500).render('error', {
+      message: 'Failed to generate print report: ' + err.message,
+      user: req.session.user
+    });
   }
 });
 

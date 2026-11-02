@@ -196,6 +196,24 @@
         font-size: 0.75rem;
         padding: 0.25rem 0.6rem;
       }
+
+      .format-card {
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.2s ease-in-out;
+        user-select: none;
+      }
+
+      .format-card:hover {
+        border-color: #C0392B !important;
+        background-color: #fff9f9;
+      }
+
+      .format-card.active {
+        border-color: #C0392B !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.2);
+      }
     </style>
 </head>
 
@@ -206,8 +224,9 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4 class="fw-semibold mb-0"><i class="fa-solid fa-clipboard-list me-2 text-danger"></i>Requirements</h4>
           <div class="d-flex align-items-center gap-2">
-            <a id="downloadCsvBtn" href="/api/requirements/export-csv" class="btn btn-success btn-sm" download="requirements_tracking_report.csv"><i
-                class="fa-solid fa-file-excel me-1"></i>Download CSV Track</a>
+            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#exportModal" onclick="openExportModal()">
+              <i class="fa-solid fa-file-export me-1"></i>Download Track (CSV / PDF)
+            </button>
             <% if(user.role==='admin'||user.role==='super_admin'||user.role==='emp'){ %>
             <a href="/requirements/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Requirement</a>
             <% } %>
@@ -395,6 +414,101 @@
             </div>
     </div>
 
+    <!-- Export Modal -->
+    <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header border-bottom pb-2">
+            <h6 class="modal-title fw-semibold" id="exportModalLabel">
+              <i class="fa-solid fa-file-export text-danger me-2"></i>Download Requirements Report
+            </h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body py-3">
+            
+            <!-- 1. Date Range Option -->
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-secondary mb-1">
+                <i class="fa-solid fa-calendar-days text-danger me-1"></i>1. Date Range (Optional)
+              </label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label text-muted mb-0" style="font-size: 0.75rem;">From Date</label>
+                  <input type="date" id="exportFromDate" class="form-control form-control-sm">
+                </div>
+                <div class="col-6">
+                  <label class="form-label text-muted mb-0" style="font-size: 0.75rem;">To Date</label>
+                  <input type="date" id="exportToDate" class="form-control form-control-sm">
+                </div>
+              </div>
+              <div class="d-flex gap-2 mt-1">
+                <button type="button" class="btn btn-link p-0 text-decoration-none text-muted small" style="font-size:0.75rem;" onclick="setExportDatePreset('all')">All Time</button>
+                <span class="text-muted small">·</span>
+                <button type="button" class="btn btn-link p-0 text-decoration-none text-muted small" style="font-size:0.75rem;" onclick="setExportDatePreset('today')">Today</button>
+                <span class="text-muted small">·</span>
+                <button type="button" class="btn btn-link p-0 text-decoration-none text-muted small" style="font-size:0.75rem;" onclick="setExportDatePreset('week')">This Week</button>
+                <span class="text-muted small">·</span>
+                <button type="button" class="btn btn-link p-0 text-decoration-none text-muted small" style="font-size:0.75rem;" onclick="setExportDatePreset('month')">This Month</button>
+              </div>
+            </div>
+
+            <!-- 2. Shared / Not Shared Option -->
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-secondary mb-1">
+                <i class="fa-solid fa-share-nodes text-danger me-1"></i>2. Profile Shared Status
+              </label>
+              <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="exportShareStatus" id="exportShareAll" value="all" checked>
+                <label class="btn btn-outline-secondary btn-sm" for="exportShareAll">All</label>
+
+                <input type="radio" class="btn-check" name="exportShareStatus" id="exportShareShared" value="shared">
+                <label class="btn btn-outline-success btn-sm" for="exportShareShared">
+                  <i class="fa-solid fa-circle-check me-1"></i>Shared Only
+                </label>
+
+                <input type="radio" class="btn-check" name="exportShareStatus" id="exportShareNotShared" value="not_shared">
+                <label class="btn btn-outline-danger btn-sm" for="exportShareNotShared">
+                  <i class="fa-regular fa-circle me-1"></i>Not Shared Only
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Format Option (CSV or PDF) -->
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-secondary mb-1">
+                <i class="fa-solid fa-file-lines text-danger me-1"></i>3. Select Download Format
+              </label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="card p-2 border format-card text-center active" id="cardFormatCsv" onclick="selectExportFormat('csv')">
+                    <i class="fa-solid fa-file-excel text-success fs-3 mb-1"></i>
+                    <div class="fw-semibold small">CSV / Excel</div>
+                    <div class="text-muted" style="font-size:0.7rem;">.csv spreadsheet</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="card p-2 border format-card text-center" id="cardFormatPdf" onclick="selectExportFormat('pdf')">
+                    <i class="fa-solid fa-file-pdf text-danger fs-3 mb-1"></i>
+                    <div class="fw-semibold small">PDF Document</div>
+                    <div class="text-muted" style="font-size:0.7rem;">.pdf printable report</div>
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" id="exportFormat" value="csv">
+            </div>
+
+            <div id="exportModalMsg" class="alert py-1 px-2 small d-none mb-0"></div>
+          </div>
+          <div class="modal-footer border-top pt-2 pb-2">
+            <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-success btn-sm px-3" id="startExportBtn" onclick="triggerReportDownload()">
+              <i class="fa-solid fa-download me-1"></i>Download
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Edit Modal -->
     <div class="modal fade" id="editModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -441,13 +555,139 @@
     <script>
       let editModalObj = null;
       let deleteModalObj = null;
+      let exportModalObj = null;
       let deleteId = null;
 
       document.addEventListener('DOMContentLoaded', function () {
-        editModalObj = new bootstrap.Modal(document.getElementById('editModal'));
-        deleteModalObj = new bootstrap.Modal(document.getElementById('deleteModal'));
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const eModal = document.getElementById('editModal');
+          if (eModal) editModalObj = new bootstrap.Modal(eModal);
+
+          const dModal = document.getElementById('deleteModal');
+          if (dModal) deleteModalObj = new bootstrap.Modal(dModal);
+
+          const expModal = document.getElementById('exportModal');
+          if (expModal) {
+            exportModalObj = new bootstrap.Modal(expModal);
+            expModal.addEventListener('show.bs.modal', function () {
+              syncExportModalFilters();
+            });
+          }
+        }
         filterRequirements();
       });
+
+      function syncExportModalFilters() {
+        const pageFilter = document.getElementById('requirementShareFilter')?.value;
+        if (pageFilter === 'shared') {
+          const el = document.getElementById('exportShareShared');
+          if (el) el.checked = true;
+        } else if (pageFilter === 'not_shared') {
+          const el = document.getElementById('exportShareNotShared');
+          if (el) el.checked = true;
+        } else {
+          const el = document.getElementById('exportShareAll');
+          if (el) el.checked = true;
+        }
+        const msg = document.getElementById('exportModalMsg');
+        if (msg) msg.className = 'alert py-1 px-2 small d-none mb-0';
+      }
+
+      function openExportModal() {
+        syncExportModalFilters();
+        if (!exportModalObj && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const expModal = document.getElementById('exportModal');
+          if (expModal) exportModalObj = new bootstrap.Modal(expModal);
+        }
+        if (exportModalObj) {
+          exportModalObj.show();
+        }
+      }
+
+      function closeExportModal() {
+        const modalEl = document.getElementById('exportModal');
+        if (modalEl) {
+          if (exportModalObj) {
+            exportModalObj.hide();
+          } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const inst = bootstrap.Modal.getInstance(modalEl) || (bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : null);
+            if (inst) inst.hide();
+          } else {
+            const btn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+            if (btn) btn.click();
+          }
+        }
+      }
+
+      function selectExportFormat(fmt) {
+        document.getElementById('exportFormat').value = fmt;
+        document.getElementById('cardFormatCsv').classList.toggle('active', fmt === 'csv');
+        document.getElementById('cardFormatPdf').classList.toggle('active', fmt === 'pdf');
+      }
+
+      function setExportDatePreset(preset) {
+        const fromEl = document.getElementById('exportFromDate');
+        const toEl = document.getElementById('exportToDate');
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const formatDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+        if (preset === 'all') {
+          fromEl.value = '';
+          toEl.value = '';
+        } else if (preset === 'today') {
+          const todayStr = formatDate(now);
+          fromEl.value = todayStr;
+          toEl.value = todayStr;
+        } else if (preset === 'week') {
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - 7);
+          fromEl.value = formatDate(startOfWeek);
+          toEl.value = formatDate(now);
+        } else if (preset === 'month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          fromEl.value = formatDate(startOfMonth);
+          toEl.value = formatDate(now);
+        }
+      }
+
+      async function triggerReportDownload() {
+        const fromDate = document.getElementById('exportFromDate').value;
+        const toDate = document.getElementById('exportToDate').value;
+        const shareStatus = document.querySelector('input[name="exportShareStatus"]:checked')?.value || 'all';
+        const format = document.getElementById('exportFormat').value;
+        const btn = document.getElementById('startExportBtn');
+        const msg = document.getElementById('exportModalMsg');
+
+        // Validation: To Date cannot be before From Date
+        if (fromDate && toDate && fromDate > toDate) {
+          msg.className = 'alert alert-danger py-1 px-2 small mb-0';
+          msg.textContent = 'To Date cannot be earlier than From Date.';
+          msg.classList.remove('d-none');
+          return;
+        }
+
+        const params = new URLSearchParams();
+        if (shareStatus && shareStatus !== 'all') params.append('share_status', shareStatus);
+        if (fromDate) params.append('from_date', fromDate);
+        if (toDate) params.append('to_date', toDate);
+
+        const qs = params.toString() ? '?' + params.toString() : '';
+
+        // If CSV format: direct browser download without pop-up blocking
+        if (format === 'csv') {
+          window.location.href = '/api/requirements/export-csv' + qs;
+          closeExportModal();
+          return;
+        }
+
+        // If PDF format: open print preview in new tab
+        if (format === 'pdf') {
+          window.open('/requirements/export-print' + qs, '_blank');
+          closeExportModal();
+          return;
+        }
+      }
 
       // WhatsApp Share Event Listener (Secure data-attributes decoding)
       document.addEventListener('click', function (event) {
@@ -497,16 +737,6 @@
           totalCount += visibleCount;
         });
         document.getElementById('resultCount').textContent = totalCount + ' results';
-
-        // Update CSV export link with current active filters
-        const exportBtn = document.getElementById('downloadCsvBtn');
-        if (exportBtn) {
-          const params = new URLSearchParams();
-          if (shareStatus && shareStatus !== 'all') params.append('share_status', shareStatus);
-          if (q) params.append('search', q);
-          const qs = params.toString();
-          exportBtn.href = '/api/requirements/export-csv' + (qs ? '?' + qs : '');
-        }
       }
 
       function clearSearch() {
