@@ -199,7 +199,7 @@ router.get('/:id/pocs', async (req, res) => {
 // ─── POST create POC ──────────────────────────────────────────────────────
 // Endpoint to add a new POC for a client
 // Client ke liye naya POC add karne ka endpoint
-router.post('/:id/pocs', requireAdmin, async (req, res) => {
+router.post('/:id/pocs', async (req, res) => {
   // Extract POC details from request body
   // Request body se POC ki details extract karna
   const { poc_name, poc_email, poc_phone } = req.body;
@@ -235,7 +235,7 @@ router.post('/:id/pocs', requireAdmin, async (req, res) => {
 // ─── PUT update POC ────────────────────────────────────────────────────────
 // Endpoint to update an existing POC
 // Existing POC ko update karne ka endpoint
-router.put('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
+router.put('/:id/pocs/:pocId', async (req, res) => {
   // Extract updated POC details from request body
   // Request body se updated POC details extract karna
   const { poc_name, poc_email, poc_phone } = req.body;
@@ -270,7 +270,7 @@ router.put('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
 // ─── DELETE POC ────────────────────────────────────────────────────────────
 // Endpoint to delete a POC
 // POC ko delete karne ka endpoint
-router.delete('/:id/pocs/:pocId', requireAdmin, async (req, res) => {
+router.delete('/:id/pocs/:pocId', async (req, res) => {
   try {
     // Delete POC ensuring it belongs to the correct client
     // POC ko delete karna, ensure karna ki yeh sahi client ka hai
